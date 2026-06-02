@@ -205,7 +205,8 @@ tailwind.config = {
             
             <div class="space-y-0.5 xs:space-y-1 mb-3 xs:mb-4 relative z-10">
               <h4 class="text-2xl xs:text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight text-white" id="featuredName">Agent Name</h4>
-              <p class="text-sm xs:text-base sm:text-lg lg:text-xl text-outline flex items-center gap-1"><span class="material-symbols-outlined text-sm xs:text-base sm:text-lg">location_on</span> <span id="featuredRegion">Region</span></p>
+              <p class="hidden"><span class="material-symbols-outlined text-sm xs:text-base sm:text-lg">location_on</span> <span id="featuredRegion">Region</span></p>
+              <br><br><br>
             </div>
             
             <div class="space-y-2 xs:space-y-3 relative z-10 mt-auto">
@@ -218,10 +219,10 @@ tailwind.config = {
               
               <div class="space-y-1.5 xs:space-y-2">
                 <div class="flex justify-between text-xs font-bold text-outline uppercase tracking-widest">
-                  <span>Goal Achievement</span>
-                  <span id="featuredGoalPctText" class="text-primary">0%</span>
+                  <span class="hidden">Goal Achievement</span>
+                  <span id="featuredGoalPctText" class="hidden">0%</span>
                 </div>
-                <div class="h-2 xs:h-3 w-full bg-surface-container-highest rounded-full overflow-hidden">
+                <div class="hidden">
                   <div id="featuredGoalBar" class="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-1000 w-[0%]"></div>
                 </div>
               </div>
@@ -263,7 +264,7 @@ tailwind.config = {
                     <th class="px-3 py-3 font-semibold">Representative</th>
                     <th class="px-3 py-3 font-semibold hidden sm:table-cell">Team</th>
                     <th class="px-3 py-3 font-semibold text-right">Total Sales</th>
-                    <th class="px-3 py-3 font-semibold text-right">Goal %</th>
+                    <th class="px-3 py-3 font-semibold text-right">Deals</th>
                 </tr>
             </thead>
             <tbody id="ledgerTableBody" class="text-sm">
