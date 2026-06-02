@@ -1,0 +1,184 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Material Icons Responsive Sizing */
+.material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+@media (max-width: 640px) {
+    .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+}
+
+.glass-card {
+    background: rgba(23, 31, 51, 0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(58, 12, 12, 0.1);
+}
+
+.glow-primary {
+    box-shadow: 0 0 15px rgba(173, 199, 255, 0.1);
+}
+
+@media (min-width: 1024px) {
+    .glow-primary {
+        box-shadow: 0 0 20px rgba(173, 199, 255, 0.15);
+    }
+}
+
+@media (min-width: 1920px) {
+    .glow-primary {
+        box-shadow: 0 0 30px rgba(173, 199, 255, 0.2);
+    }
+}
+
+@media (min-width: 3840px) {
+    .glow-primary {
+        box-shadow: 0 0 50px rgba(173, 199, 255, 0.25);
+    }
+}
+
+.scroll-hide::-webkit-scrollbar {
+    display: none;
+}
+
+
+
+.animate-float {
+    animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+/* TV Display Enhancement: Shimmer Sweep */
+.revenue-shimmer {
+    position: relative;
+    display: inline-block;
+    overflow: visible;
+}
+
+.revenue-shimmer::after {
+    content: "";
+    position: fixed;
+    top: -4px;
+    bottom: 30px;
+    left: 40%;
+    right: 40%;
+    width: 40%;
+    height: 1000px;
+    pointer-events: none;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.12),
+        transparent
+    );
+    transform: skewX(-20deg);
+    animation: sweep 5s infinite;
+}
+
+@keyframes sweep {
+    0% {
+        left: -50%;
+    }
+    100% {
+        left: 400%;
+    }
+}
+
+/* TV Display Enhancement: Pulse Broadcaster */
+.live-broadcast-pulse {
+    animation: broadcast-glow 2s infinite ease-in-out;
+}
+
+@keyframes broadcast-glow {
+    0%, 100% { filter: drop-shadow(0 0 2px rgba(239, 103, 25, 0.4)); opacity: 1; }
+    50% { filter: drop-shadow(0 0 12px rgba(239, 103, 25, 0.8)); opacity: 0.8; }
+}
+
+/* Ledger Container - Responsive Heights */
+.ledger-scroll-container {
+    scrollbar-width: none; /* Firefox */
+}
+
+.ledger-scroll-container::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+}
+
+/* Responsive Screen Sizing */
+@media (max-width: 480px) {
+    body {
+        height: auto;
+        min-height: 100vh;
+    }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+    body {
+        height: auto;
+        min-height: 100vh;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    body {
+        height: auto;
+        min-height: 100vh;
+    }
+}
+
+/* 1080p (1920x1080) */
+@media (min-width: 1920px) and (max-width: 2559px) {
+    body {
+        height: 100vh;
+        
+    }
+}
+
+/* 1440p (2560x1440) */
+@media (min-width: 2560px) and (max-width: 3839px) {
+    body {
+        height: 100vh;
+        
+    }
+}
+
+/* 4K (3840x2160) and above */
+@media (min-width: 3840px) {
+    body {
+        height: 100vh;
+       
+    }
+}
+
+/* Slideshow transitions */
+.slideshow-enter {
+    opacity: 0;
+    transform: scale(0.95);
+    transition: all 0.8s ease-out;
+}
+
+.slideshow-enter-active {
+    opacity: 1;
+    transform: scale(1);
+}
+.slideshow-exit {
+    opacity: 1;
+    transform: scale(1);
+    transition: all 0.8s ease-in;
+}
+.slideshow-exit-active {
+    opacity: 0;
+    transform: scale(1.05);
+}
+
+#ledgerAutoScroll {
+    max-height: 420px;
+    
+}

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>SalesCommand | Enterprise Elite Leaderboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- SheetJS for XLSX parsing -->
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="style.css" />
+
+<script id="tailwind-config">
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    screens: {
+      'xs': '480px',
+      'sm': '640px',
+      'md': '768px',
+      'lg': '1024px',
+      'xl': '1280px',
+      '2xl': '1536px',
+      '3xl': '1920px',
+      '4xl': '2560px',
+      '5xl': '3840px'
+    },
+    extend: {
+      "colors": {
+              "on-background": "#dae2fd",
+              "primary-fixed-dim": "#adc7ff",
+              "secondary": "#c0c1ff",
+              "secondary-fixed-dim": "#c0c1ff",
+              "tertiary-container": "#ef6719",
+              "on-secondary-fixed-variant": "#2f2ebe",
+              "surface-container": "#171f33",
+              "on-tertiary": "#571e00",
+              "inverse-primary": "#005bc0",
+              "error-container": "#93000a",
+              "on-error-container": "#ffdad6",
+              "on-tertiary-fixed-variant": "#7c2e00",
+              "tertiary-fixed-dim": "#ffb695",
+              "surface-bright": "#31394d",
+              "surface-container-highest": "#2d3449",
+              "on-surface-variant": "#c1c6d7",
+              "surface": "#0b1326",
+              "error": "#ffb4ab",
+              "on-surface": "#dae2fd",
+              "secondary-fixed": "#e1e0ff",
+              "inverse-surface": "#dae2fd",
+              "surface-container-lowest": "#060e20",
+              "surface-container-high": "#222a3d",
+              "on-error": "#690005",
+              "background": "#0b1326",
+              "surface-container-low": "#131b2e",
+              "on-primary-fixed": "#001a41",
+              "primary-fixed": "#d8e2ff",
+              "surface-variant": "#2d3449",
+              "tertiary-fixed": "#ffdbcc",
+              "on-secondary": "#1000a9",
+              "on-secondary-container": "#b0b2ff",
+              "surface-dim": "#0b1326",
+              "surface-tint": "#adc7ff",
+              "inverse-on-surface": "#283044",
+              "on-primary-fixed-variant": "#004493",
+              "outline-variant": "#414754",
+              "secondary-container": "#3131c0",
+              "on-primary-container": "#00285b",
+              "primary": "#adc7ff",
+              "on-secondary-fixed": "#07006c",
+              "primary-container": "#4a8eff",
+              "tertiary": "#ffb695",
+              "on-tertiary-container": "#4c1a00",
+              "on-primary": "#002e68",
+              "outline": "#8b90a0",
+              "on-tertiary-fixed": "#351000"
+      },
+      "borderRadius": {
+              "DEFAULT": "0.25rem",
+              "lg": "0.5rem",
+              "xl": "0.75rem",
+              "full": "9999px"
+      },
+      "spacing": {
+              "card-gap": "24px",
+              "container-padding-desktop": "32px",
+              "gutter": "24px",
+              "base": "8px",
+              "container-padding-mobile": "16px",
+              "section-margin": "48px"
+      },
+      "fontFamily": {
+              "headline-md": ["Inter"],
+              "body-lg": ["Inter"],
+              "label-md": ["JetBrains Mono"],
+              "label-sm": ["JetBrains Mono"],
+              "headline-lg-mobile": ["Inter"],
+              "headline-lg": ["Inter"],
+              "body-md": ["Inter"],
+              "body-sm": ["Inter"],
+              "display-lg": ["Inter"]
+      },
+      "fontSize": {
+              "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+              "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+              "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+              "label-sm": ["10px", {"lineHeight": "14px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+              "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+              "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+              "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+              "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+              "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+      }
+    },
+  },
+}
+</script>
+</head>
+<body class="bg-background text-on-surface font-body-md overflow-hidden h-screen flex flex-col">
+<!-- Top Navigation Bar Shell -->
+<header class="fixed top-0 right-0 left-0 z-30 flex justify-between items-center px-3 xs:px-5 sm:px-6 md:px-8 lg:px-10 h-14 xs:h-16 sm:h-18 lg:h-20 bg-surface/80 backdrop-blur-xl border-b border-outline-variant shadow-sm">
+  <div class="flex items-center gap-2 xs:gap-3 sm:gap-4 lg:gap-6">
+    <div class="flex items-center gap-2 xs:gap-2.5 sm:gap-3 lg:gap-3">
+      <div class="h-7 xs:h-8 sm:h-9 lg:h-10 w-7 xs:w-8 sm:w-9 lg:w-10 bg-primary rounded-lg flex items-center justify-center">
+        <span class="material-symbols-outlined text-xs xs:text-sm sm:text-base lg:text-lg text-on-primary">monitoring</span>
+      </div>
+      <div>
+        <h1 class="text-sm xs:text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-primary hidden xs:block">SalesCommand</h1>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5 xs:gap-2 sm:gap-2 lg:gap-2 ml-2 xs:ml-4 lg:ml-6 live-broadcast-pulse">
+      <span class="relative flex h-1.5 xs:h-2 w-1.5 xs:w-2">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-tertiary-container opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-1.5 xs:h-2 w-1.5 xs:w-2 bg-tertiary-container"></span>
+      </span>
+      <span class="text-xs xs:text-sm sm:text-base lg:text-base font-bold text-tertiary-container uppercase tracking-widest hidden sm:block">LIVE</span>
+      <span class="text-xs xs:text-sm sm:text-base lg:text-base font-bold text-tertiary-container uppercase tracking-widest hidden md:inline">BROADCAST</span>
+    </div>
+  </div>
+  <div class="flex items-center gap-4 xs:gap-6 sm:gap-8 lg:gap-10">
+    <div class="flex items-center gap-2 xs:gap-3 sm:gap-4 lg:gap-6">
+      <span class="hidden sm:block text-outline text-xs xs:text-sm sm:text-base lg:text-2xl font-bold" id="clock">Last Updated: --:--</span>
+    </div>
+  </div>
+</header>
+
+<!-- Main Content Canvas -->
+<main class="pt-14 xs:pt-16 sm:pt-18 lg:pt-20 flex-1 flex flex-col overflow-hidden pb-3 xs:pb-4 sm:pb-5 lg:pb-6 relative z-0">
+  <!-- Background Atmospheric Element -->
+  <div class="fixed top-0 right-0 -z-10 w-96 xs:w-[500px] sm:w-[600px] lg:w-[800px] h-96 xs:h-[500px] sm:h-[600px] lg:h-[800px] bg-primary/5 rounded-full blur-[80px] xs:blur-[100px] lg:blur-[120px] pointer-events-none translate-x-1/2 -translate-y-1/2"></div>
+  <div class="fixed bottom-0 left-0 -z-10 w-72 xs:w-96 sm:w-[500px] lg:w-[600px] h-72 xs:h-96 sm:h-[500px] lg:h-[600px] bg-secondary/5 rounded-full blur-[80px] xs:blur-[100px] lg:blur-[100px] pointer-events-none -translate-x-1/2 translate-y-1/2"></div>
+  
+  <div class="max-w-full sm:max-w-full md:max-w-full lg:max-w-6xl xl:max-w-7xl 2xl:max-w-full 3xl:max-w-7xl 4xl:max-w-full 5xl:max-w-full w-full mx-auto px-2 xs:px-3 sm:px-4 md:px-6 lg:px-8 2xl:px-10 4xl:px-16 py-3 xs:py-4 sm:py-5 md:py-6 lg:py-6 flex-1 flex flex-col min-h-0 gap-3 xs:gap-4 sm:gap-5 md:gap-6 lg:gap-6">
+    
+    <!-- Global Metrics Bar -->
+    <section class="flex-none glass-card rounded-xl xs:rounded-2xl sm:rounded-3xl p-3 xs:p-4 sm:p-5 md:p-6 lg:p-6 relative overflow-hidden group">
+      <div class="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent"></div>
+      <div class="relative flex flex-col lg:flex-row items-start lg:items-center justify-between gap-2 xs:gap-3 sm:gap-4 lg:gap-8">
+        <div class="w-full lg:w-auto">
+          <p class="text-xs xs:text-xs sm:text-sm lg:text-sm font-bold text-primary uppercase tracking-widest mb-0.5">Total Company Sales YTD</p>
+          <h2 class="text-2xl xs:text-3xl sm:text-4xl md:text-5xl lg:text-6xl 2xl:text-7xl leading-none font-bold text-white drop-shadow-[0_0_12px_rgba(173,199,255,0.3)] lg:drop-shadow-[0_0_20px_rgba(173,199,255,0.4)] tracking-tighter revenue-shimmer" id="totalCompanySales">
+            $0.<span class="text-base xs:text-lg sm:text-xl md:text-2xl lg:text-3xl opacity-40">00</span>
+          </h2>
+        </div>
+        <div class="flex flex-col xs:flex-row gap-3 xs:gap-4 sm:gap-6 lg:gap-8 border-t lg:border-t-0 lg:border-l border-outline-variant/30 pt-2 xs:pt-4 lg:pt-0 lg:pl-8 w-full lg:w-auto">
+          <div>
+            <p class="text-xs font-bold text-outline mb-0.5 uppercase tracking-widest">Top Performer</p>
+            <p class="text-lg xs:text-xl sm:text-2xl lg:text-3xl leading-tight font-bold text-primary" id="topPerformerName">Loading...</p>
+          </div>
+          <div>
+            <p class="text-xs font-bold text-outline mb-0.5 uppercase tracking-widest">Total Agents</p>
+            <p class="text-lg xs:text-xl sm:text-2xl lg:text-3xl leading-tight font-bold text-secondary" id="totalAgents">0</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid grid-cols-12 gap-3 xs:gap-4 sm:gap-5 md:gap-6 lg:gap-8 flex-1 min-h-0">
+      <!-- Left Column: Featured Slideshow -->
+      <div class="col-span-12 lg:col-span-5 flex flex-col gap-1">
+        <section class="flex flex-col gap-2 xs:gap-12 sm:gap- h-50 xs:h--10 sm:h-400 lg:h-100">
+          <div class="flex items-center justify-between"> 
+            <h3 class="text-lg xs:text-xl sm:text-2xl lg:text-3xl font-bold">Featured Agent</h3>
+            <span class="text-xs font-bold text-outline uppercase tracking-widest" id="slideshowCounter">1 / 1</span>
+          </div>
+          
+          <div id="featuredCardContainer" class="flex-1 glass-card rounded-lg xs:rounded-xl sm:rounded-2xl p-3 xs:p-4 sm:p-6 lg:p-8 border-t-[1px] border-primary/40 transition-all flex flex-col justify-center relative overflow-hidden slideshow-enter-active glow-primary min-h-0">
+            <div class="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent pointer-events-none"></div>
+            
+            <div class="flex flex-col xs:flex-row justify-between items-start gap-2 xs:gap-3 mb-4 xs:mb-5 relative z-10">
+              <div class="relative">
+                <div class="w-16 xs:w-20 sm:w-24 h-16 xs:h-20 sm:h-24 rounded-full p-1 ring-2 ring-primary glow-primary overflow-hidden bg-surface-container-highest">
+                  <img id="featuredImg" alt="Featured Seller Photo" class="w-full h-full object-cover rounded-full" src="images/default-user.png" onerror="this.src='images/default-user.png'"/>
+                </div>
+                <div class="absolute -bottom-1 -right-1 bg-gradient-to-br from-primary to-inverse-primary w-6 xs:w-7 sm:w-8 h-6 xs:h-7 sm:h-8 rounded-full flex items-center justify-center border-2 border-surface shadow-lg">
+                  <span class="text-xs font-bold text-on-primary" id="featuredRank">#1</span>
+                </div>
+              </div>
+              <div class="bg-primary/10 px-2.5 xs:px-3 sm:px-4 py-1 rounded-full border border-primary/20">
+                <span class="text-xs font-bold text-primary uppercase tracking-widest" id="featuredTeam">Team</span>
+              </div>
+            </div>
+            
+            <div class="space-y-0.5 xs:space-y-1 mb-3 xs:mb-4 relative z-10">
+              <h4 class="text-2xl xs:text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight text-white" id="featuredName">Agent Name</h4>
+              <p class="text-sm xs:text-base sm:text-lg lg:text-xl text-outline flex items-center gap-1"><span class="material-symbols-outlined text-sm xs:text-base sm:text-lg">location_on</span> <span id="featuredRegion">Region</span></p>
+            </div>
+            
+            <div class="space-y-2 xs:space-y-3 relative z-10 mt-auto">
+              <div>
+                <div class="flex justify-between text-xs font-bold text-outline mb-1 tracking-widest">
+                  <span>TOTAL SALES</span>
+                </div>
+                <h5 class="text-3xl xs:text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-none drop-shadow-[0_0_8px_rgba(173,199,255,0.2)]" id="featuredSales">$0</h5>
+              </div>
+              
+              <div class="space-y-1.5 xs:space-y-2">
+                <div class="flex justify-between text-xs font-bold text-outline uppercase tracking-widest">
+                  <span>Goal Achievement</span>
+                  <span id="featuredGoalPctText" class="text-primary">0%</span>
+                </div>
+                <div class="h-2 xs:h-3 w-full bg-surface-container-highest rounded-full overflow-hidden">
+                  <div id="featuredGoalBar" class="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-1000 w-[0%]"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Right Column: Top 3 & Ledger -->
+      <div class="col-span-12 lg:col-span-7 flex flex-col gap-4 xs:gap-5 sm:gap-6 lg:gap-8">
+        <!-- Top 3 Grid -->
+        <section class="space-y-2">
+          <h3 class="text-lg xs:text-xl sm:text-2xl lg:text-3xl font-bold">Top 3 Leaderboard</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 xs:gap-3 sm:gap-4 lg:gap-5" id="top3Grid">
+            <!-- Populated by JS -->
+          </div>
+        </section>
+
+        <!-- Ledger -->
+        <!-- SECCIÓN: FULL PERFORMANCE LEDGER -->
+<div class="glass-card rounded-xl p-4 sm:p-6 flex flex-col h-full mt-4 sm:mt-6">
+    <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary">table_chart</span>
+            Full Performance Ledger
+        </h3>
+        <div class="flex items-center gap-2 text-xs font-medium text-outline">
+            <span class="w-2 h-2 rounded-full bg-green-500 live-broadcast-pulse"></span>
+            Stream Active
+        </div>
+    </div>
+    
+    <!-- ⚠️ CONTENEDOR CRÍTICO: Debe tener este ID exacto para que el JS funcione -->
+    <div id="ledgerAutoScroll" class="ledger-scroll-container overflow-y-auto scroll-hide flex-1">
+        <table class="w-full text-left border-collapse min-w-[600px]">
+            <thead class="sticky top-0 bg-surface-container-highest/95 backdrop-blur-sm z-10 shadow-sm">
+                <tr class="text-outline text-xs sm:text-sm uppercase tracking-wider border-b border-outline-variant">
+                    <th class="px-3 py-3 font-semibold">Rank</th>
+                    <th class="px-3 py-3 font-semibold">Representative</th>
+                    <th class="px-3 py-3 font-semibold hidden sm:table-cell">Team</th>
+                    <th class="px-3 py-3 font-semibold text-right">Total Sales</th>
+                    <th class="px-3 py-3 font-semibold text-right">Goal %</th>
+                </tr>
+            </thead>
+            <tbody id="ledgerTableBody" class="text-sm">
+                <!-- Las filas se inyectan automáticamente con JS aquí -->
+            </tbody>
+        </table>
+    </div>
+</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
