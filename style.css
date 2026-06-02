@@ -80,15 +80,15 @@
         transparent
     );
     transform: skewX(-20deg);
-    animation: sweep 5s infinite;
+    animation: sweep 7s infinite;
 }
 
 @keyframes sweep {
     0% {
-        left: -50%;
+        left: -100%;
     }
     100% {
-        left: 400%;
+        left: 600%;
     }
 }
 

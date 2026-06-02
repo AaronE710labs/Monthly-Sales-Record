@@ -10,9 +10,12 @@
 // IMPORTANT: Paste your Google Drive Excel (.xlsx) direct download URL here.
 // To get a direct download link from a Google Drive file, change the URL structure:
 // From: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
-// To: https://drive.google.com/uc?export=download&id=FILE_ID
-const GOOGLE_SHEETS_XLSX_URL = "";
-
+// To: https://drive.google.com/uc?export=download&id=FILE_IDe
+const AGENTS_CSV_URL =
+  "https://docs.google.com/spreadsheets/d/1YeplpWhNLgwGuT1Sbbz_TMkqKwggl1Kdi8JIc3_gM0w/export?format=csv&gid=605948154";
+const GOOGLE_SHEETS_XLSX_URL =
+  "https://docs.google.com/spreadsheets/d/1YeplpWhNLgwGuT1Sbbz_TMkqKwggl1Kdi8JIc3_gM0w/export?format=csv&gid=1195051681";
+  
 // Refresh interval (in milliseconds). Default: 1 minute.
 const DATA_REFRESH_INTERVAL = 1 * 60 * 1000;
 
@@ -57,80 +60,125 @@ function updateClock() {
 // DATA FETCHING & PARSING
 // ==========================================
 async function fetchData() {
-  const fetchUrl = GOOGLE_SHEETS_XLSX_URL || LOCAL_FALLBACK_XLSX;
-
   try {
-    // If falling back to local CSV for testing
-    if (fetchUrl.endsWith(".csv")) {
-      const response = await fetch(fetchUrl);
-      const text = await response.text();
-      const workbook = XLSX.read(text, { type: "string" });
-      const sheetName = workbook.SheetNames[0];
-      const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
-        defval: "",
-      });
-      processData(data);
-      return;
-    }
+    const [salesResponse, agentsResponse] = await Promise.all([
+      fetch(GOOGLE_SHEETS_XLSX_URL + `&cacheBust=${Date.now()}`),
+      fetch(AGENTS_CSV_URL + `&cacheBust=${Date.now()}`)
+    ]);
 
-    // Fetch XLSX from Google Drive as arrayBuffer
-    const response = await fetch(fetchUrl);
-    const arrayBuffer = await response.arrayBuffer();
+    const salesText = await salesResponse.text();
+    const agentsText = await agentsResponse.text();
 
-    // Parse with SheetJS
-    const workbook = XLSX.read(arrayBuffer, { type: "array" });
-    const sheetName = workbook.SheetNames[0];
-    const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
-      defval: "",
-    });
+    const salesWorkbook = XLSX.read(salesText, { type: "string" });
+    const agentsWorkbook = XLSX.read(agentsText, { type: "string" });
 
-    processData(data);
+    const salesSheetName = salesWorkbook.SheetNames[0];
+    const agentsSheetName = agentsWorkbook.SheetNames[0];
+
+    const salesRows = XLSX.utils.sheet_to_json(
+      salesWorkbook.Sheets[salesSheetName],
+      { defval: "" }
+    );
+
+    const agentRows = XLSX.utils.sheet_to_json(
+      agentsWorkbook.Sheets[agentsSheetName],
+      { defval: "" }
+    );
+
+    processData(salesRows, agentRows);
   } catch (err) {
-    console.error("Error fetching or parsing Excel file:", err);
+    console.error("Error fetching or parsing CSV data:", err);
+
     if (isFirstLoad) {
       document.getElementById("topPerformerName").textContent = "Data Error";
     }
   }
 }
+function getCurrentMonthLabel() {
+  const months = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+  ];
 
-function processData(rawData) {
-  // Expected Columns: Full Name, Total Sales, Monthly Sales, Goal Percentage, Rank, Team, Region
-  // Ensure all required fields exist, parse numbers.
-  salesData = rawData.map((row) => {
-    // Fallbacks for missing columns depending on exact headers
-    const deals = parseInt(row['Deals']) || 0;
-    const rawSales = row["Total Sales"] || row["TotalSales"] || 0;
-    const totalSales =
-      typeof rawSales === "string"
-        ? parseFloat(rawSales.replace(/[^0-9.-]+/g, ""))
-        : rawSales;
+  const now = new Date();
 
-    const rawGoal = row["Goal Percentage"] || row["GoalPercentage"] || 0;
-    const goalPct =
-      typeof rawGoal === "string"
-        ? parseFloat(rawGoal.replace(/[^0-9.-]+/g, ""))
-        : rawGoal;
+  return `${months[now.getMonth()]} ${now.getFullYear()}`;
+}
+function processData(rawData, agentRows = []) {
+  const allowedStatuses = ["enrolled", "active", "1st cleared", "2nd cleared"];
+  const groupedAgents = {};
+  const currentMonth = getCurrentMonthLabel().toLowerCase();
 
-    const rank = parseInt(row["Rank"]) || 999;
+  rawData.forEach((row) => {
+    const rowMonth = String(row["Month"] || "")
+      .trim()
+      .toLowerCase();
 
-    const name = row["Full Name"] || row["FullName"] || "Unknown Agent";
+    if (rowMonth !== currentMonth) {
+      return;
+    }
 
-    return {
-      name: name,
-      totalSales: totalSales,
-      goalPct: goalPct,
-      rank: rank,
-      team: row["Team"] || "Unknown Team",
-      region: row["Region"] || "Unknown Region",
-      imagePath: generateImagePath(name),
-        deals: deals,
-    };
+    const status = String(row["Status"] || "")
+      .trim()
+      .toLowerCase();
+
+    if (!allowedStatuses.includes(status)) {
+      return;
+    }
+
+    const name = String(
+      row["Full Name"] ||
+      row["FullName"] ||
+      row["Agent"] ||
+      row["Sales Rep"] ||
+      row["Representative"] ||
+      "Unknown Agent"
+    ).trim();
+
+    const rawDebt = row["Debt"] || row["debt"] || 0;
+
+    const debt =
+      typeof rawDebt === "string"
+        ? parseFloat(rawDebt.replace(/[^0-9.-]+/g, ""))
+        : Number(rawDebt);
+
+    if (!groupedAgents[name]) {
+      groupedAgents[name] = {
+        name: name,
+        totalSales: 0,
+        deals: 0,
+        team: row["Team"] || "",
+        region: row["Region"] || "",
+        imagePath: generateImagePath(name),
+      };
+    }
+
+    groupedAgents[name].totalSales += isNaN(debt) ? 0 : debt;
+    groupedAgents[name].deals += 1;
   });
 
-  // Sort by Total Sales descending
+  // Agrega agentes que no vendieron
+  agentRows.forEach((row) => {
+    const name = String(row["Agent"] || "").trim();
+
+    if (!name) return;
+
+    if (!groupedAgents[name]) {
+      groupedAgents[name] = {
+        name: name,
+        totalSales: 0,
+        deals: 0,
+        team: row["Team"] || "",
+        region: "",
+        imagePath: generateImagePath(name),
+      };
+    }
+  });
+
+  salesData = Object.values(groupedAgents);
+
   salesData.sort((a, b) => b.totalSales - a.totalSales);
 
-  // Update Ranks based on sorted order if Rank column wasn't accurate
   salesData.forEach((agent, index) => {
     agent.rank = index + 1;
   });
