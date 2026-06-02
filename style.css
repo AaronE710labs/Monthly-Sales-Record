@@ -85,7 +85,7 @@
 
 @keyframes sweep {
     0% {
-        left: -50%;
+        left: -100%;
     }
     100% {
         left: 400%;
