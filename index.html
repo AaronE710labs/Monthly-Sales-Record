@@ -20,7 +20,7 @@ tailwind.config = {
       'xs': '480px',
       'sm': '640px',
       'md': '768px',
-      'lg': '1024px',
+      'lg': '900px',
       'xl': '1280px',
       '2xl': '1536px',
       '3xl': '1920px',
@@ -118,7 +118,28 @@ tailwind.config = {
 }
 </script>
 </head>
-<body class="bg-background text-on-surface font-body-md overflow-hidden h-screen flex flex-col">
+<div id="debugViewport" style="
+    position: fixed;
+    bottom: 8px;
+    left: 8px;
+    z-index: 99999;
+    background: rgba(0,0,0,.75);
+    color: white;
+    font: 14px monospace;
+    padding: 6px 10px;
+    border-radius: 6px;
+">
+</div>
+
+<script>
+setInterval(function () {
+    document.getElementById('debugViewport').textContent =
+        'viewport: ' + window.innerWidth + ' x ' + window.innerHeight +
+        ' | DPR: ' + window.devicePixelRatio;
+}, 500);
+</script>
+<body class="bg-background text-on-surface font-body-md overflow-hidden">
+  <div id="tvCanvas"></div>
 <!-- Top Navigation Bar Shell -->
 <header class="fixed top-0 right-0 left-0 z-30 flex justify-between items-center px-3 xs:px-5 sm:px-6 md:px-8 lg:px-10 h-14 xs:h-16 sm:h-18 lg:h-20 bg-surface/80 backdrop-blur-xl border-b border-outline-variant shadow-sm">
   <div class="flex items-center gap-2 xs:gap-3 sm:gap-4 lg:gap-6">
@@ -147,8 +168,7 @@ tailwind.config = {
 </header>
 
 <!-- Main Content Canvas -->
-<main class="pt-14 xs:pt-16 sm:pt-18 lg:pt-20 flex-1 flex flex-col overflow-hidden pb-3 xs:pb-4 sm:pb-5 lg:pb-6 relative z-0">
-  <!-- Background Atmospheric Element -->
+<main class="pt-20 h-[1080px] flex flex-col overflow-hidden pb-6 relative z-0">  <!-- Background Atmospheric Element -->
   <div class="fixed top-0 right-0 -z-10 w-96 xs:w-[500px] sm:w-[600px] lg:w-[800px] h-96 xs:h-[500px] sm:h-[600px] lg:h-[800px] bg-primary/5 rounded-full blur-[80px] xs:blur-[100px] lg:blur-[120px] pointer-events-none translate-x-1/2 -translate-y-1/2"></div>
   <div class="fixed bottom-0 left-0 -z-10 w-72 xs:w-96 sm:w-[500px] lg:w-[600px] h-72 xs:h-96 sm:h-[500px] lg:h-[600px] bg-secondary/5 rounded-full blur-[80px] xs:blur-[100px] lg:blur-[100px] pointer-events-none -translate-x-1/2 translate-y-1/2"></div>
   
@@ -180,13 +200,13 @@ tailwind.config = {
     <div class="grid grid-cols-12 gap-3 xs:gap-4 sm:gap-5 md:gap-6 lg:gap-8 flex-1 min-h-0">
       <!-- Left Column: Featured Slideshow -->
       <div class="col-span-12 lg:col-span-5 flex flex-col gap-1">
-        <section class="flex flex-col gap-2 xs:gap-12 sm:gap- h-50 xs:h--10 sm:h-400 lg:h-100">
+        <section class="flex flex-col gap-2 h-[520px] min-h-0">
           <div class="flex items-center justify-between"> 
             <h3 class="text-lg xs:text-xl sm:text-2xl lg:text-3xl font-bold">Featured Agent</h3>
             <span class="text-xs font-bold text-outline uppercase tracking-widest" id="slideshowCounter">1 / 1</span>
           </div>
           
-          <div id="featuredCardContainer" class="flex-1 glass-card rounded-lg xs:rounded-xl sm:rounded-2xl p-3 xs:p-4 sm:p-6 lg:p-8 border-t-[1px] border-primary/40 transition-all flex flex-col justify-center relative overflow-hidden slideshow-enter-active glow-primary min-h-0">
+          <div id="featuredCardContainer" class="h-[455px] glass-card rounded-lg xs:rounded-xl sm:rounded-2xl p-3 xs:p-4 sm:p-6 lg:p-8 border-t-[1px] border-primary/40 transition-all flex flex-col justify-center relative overflow-hidden slideshow-enter-active glow-primary min-h-0">
             <div class="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent pointer-events-none"></div>
             
             <div class="flex flex-col xs:flex-row justify-between items-start gap-2 xs:gap-3 mb-4 xs:mb-5 relative z-10">
@@ -206,7 +226,7 @@ tailwind.config = {
             <div class="space-y-0.5 xs:space-y-1 mb-3 xs:mb-4 relative z-10">
               <h4 class="text-2xl xs:text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight text-white" id="featuredName">Agent Name</h4>
               <p class="hidden"><span class="material-symbols-outlined text-sm xs:text-base sm:text-lg">location_on</span> <span id="featuredRegion">Region</span></p>
-              <br><br><br>
+              <div class="h-6 lg:h-12"></div>
             </div>
             
             <div class="space-y-2 xs:space-y-3 relative z-10 mt-auto">
@@ -243,7 +263,7 @@ tailwind.config = {
 
         <!-- Ledger -->
         <!-- SECCIÓN: FULL PERFORMANCE LEDGER -->
-<div class="glass-card rounded-xl p-4 sm:p-6 flex flex-col h-full mt-4 sm:mt-6">
+<div class="glass-card rounded-xl p-4 sm:p-6 flex flex-col h-[380px] mt-4 sm:mt-6">
     <div class="flex justify-between items-center mb-4">
         <h3 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
             <span class="material-symbols-outlined text-primary">table_chart</span>
@@ -257,15 +277,15 @@ tailwind.config = {
     
     <!-- ⚠️ CONTENEDOR CRÍTICO: Debe tener este ID exacto para que el JS funcione -->
     <div id="ledgerAutoScroll" class="ledger-scroll-container overflow-y-auto scroll-hide flex-1">
-        <table class="w-full text-left border-collapse min-w-[600px]">
-            <thead class="sticky top-0 bg-surface-container-highest/95 backdrop-blur-sm z-10 shadow-sm">
-                <tr class="text-outline text-xs sm:text-sm uppercase tracking-wider border-b border-outline-variant">
-                    <th class="px-3 py-3 font-semibold">Rank</th>
-                    <th class="px-3 py-3 font-semibold">Representative</th>
-                    <th class="px-3 py-3 font-semibold hidden sm:table-cell">Team</th>
-                    <th class="px-3 py-3 font-semibold text-right">Total Sales</th>
-                    <th class="px-3 py-3 font-semibold text-right">Deals</th>
-                </tr>
+        <table class="w-full table-fixed text-left border-collapse">
+          <thead class="sticky top-0 bg-surface-container-highest/95 backdrop-blur-sm z-10 shadow-sm">
+            <tr class="text-outline text-xs sm:text-sm uppercase tracking-wider border-b border-outline-variant">
+              <th class="w-[9%] px-2 py-3 font-semibold">Rank</th>
+              <th class="w-[35%] px-2 py-3 font-semibold">Representative</th>
+              <th class="w-[22%] px-2 py-3 font-semibold hidden sm:table-cell">Team</th>
+              <th class="w-[22%] px-2 py-3 font-semibold text-right">Total Sales</th>
+              <th class="w-[12%] px-2 py-3 font-semibold text-right">Deals</th>
+            </tr>
             </thead>
             <tbody id="ledgerTableBody" class="text-sm">
                 <!-- Las filas se inyectan automáticamente con JS aquí -->
@@ -277,6 +297,35 @@ tailwind.config = {
     </div>
   </div>
 </main>
+
+
+</div>
+
+<script>
+(function () {
+    function fitTvCanvas() {
+        var canvas = document.getElementById('tvCanvas');
+        if (!canvas) return;
+
+        var baseWidth = 1920;
+        var baseHeight = 1080;
+
+        var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+        var viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+
+        var scale = Math.min(viewportWidth / baseWidth, viewportHeight / baseHeight);
+
+        canvas.style.transform = 'scale(' + scale + ')';
+        canvas.style.left = ((viewportWidth - baseWidth * scale) / 2) + 'px';
+        canvas.style.top = ((viewportHeight - baseHeight * scale) / 2) + 'px';
+    }
+
+    window.addEventListener('resize', fitTvCanvas);
+    window.addEventListener('orientationchange', fitTvCanvas);
+    document.addEventListener('DOMContentLoaded', fitTvCanvas);
+    fitTvCanvas();
+})();
+</script>
 
 <script src="app.js"></script>
 </body>

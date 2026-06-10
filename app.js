@@ -23,6 +23,9 @@ const SLIDESHOW_INTERVAL = 10 * 1000;
 // Local fallback data if URL is empty
 const LOCAL_FALLBACK_XLSX = "data.csv"; // Using csv temporarily locally as fallback, but URL will use XLSX.
 
+// EXCLUDED_AGENTS is used to filter out specific agents from the dashboard. Names should be in lowercase and trimmed.
+const EXCLUDED_AGENTS = ["diego moreira"];
+
 // ==========================================
 // STATE
 // ==========================================
@@ -127,7 +130,7 @@ function processData(rawData, agentRows = []) {
     const name = String(row["Agent"] || "").trim();
 
     if (!name) return;
-
+    if (EXCLUDED_AGENTS.includes(name.toLowerCase())) return;
     const rawDebt = row["Debt"] || 0;
 
     const debt =
@@ -154,7 +157,7 @@ function processData(rawData, agentRows = []) {
     const name = String(row["Agent"] || "").trim();
 
     if (!name) return;
-
+    if (EXCLUDED_AGENTS.includes(name.toLowerCase())) return;
     if (!groupedAgents[name]) {
       groupedAgents[name] = {
         name: name,
@@ -353,9 +356,15 @@ const SCROLL_CONFIG = {
 
 function setupAutoScroll() {
   const ledgerContainer = document.getElementById("ledgerAutoScroll");
+  const ledgerBody = document.getElementById("ledgerTableBody");
 
   if (!ledgerContainer) {
     console.error("No existe #ledgerAutoScroll");
+    return;
+  }
+
+  if (!ledgerBody) {
+    console.error("No existe #ledgerTableBody");
     return;
   }
 
@@ -372,45 +381,39 @@ function setupAutoScroll() {
 
   ledgerIsPaused = false;
 
-  function move() {
-    if (ledgerContainer.scrollHeight <= ledgerContainer.clientHeight) {
+  // Guardamos la lista original antes de duplicarla
+  const originalHTML = ledgerBody.innerHTML.trim();
+
+  if (!originalHTML) {
+    return;
+  }
+
+  // Duplicamos las filas para crear efecto de lista infinita
+  ledgerBody.innerHTML = originalHTML + originalHTML;
+
+  // La mitad del alto total equivale a la lista original
+  const loopHeight = ledgerBody.scrollHeight / 2;
+
+  // Empezar desde arriba
+  ledgerContainer.scrollTop = 0;
+
+  function moveLedgerLoop() {
+    if (loopHeight <= ledgerContainer.clientHeight) {
       return;
     }
 
-    if (!ledgerIsPaused) {
-      ledgerContainer.scrollTop += SCROLL_CONFIG.speed;
+    ledgerContainer.scrollTop += SCROLL_CONFIG.speed || 1;
 
-      if (
-        ledgerContainer.scrollTop >=
-        ledgerContainer.scrollHeight - ledgerContainer.clientHeight
-      ) {
-        ledgerContainer.scrollTop = 0;
-      }
+    // Cuando llega a la segunda copia, vuelve al inicio sin que se note
+    if (ledgerContainer.scrollTop >= loopHeight) {
+      ledgerContainer.scrollTop = ledgerContainer.scrollTop - loopHeight;
     }
   }
 
-  function cycle() {
-    ledgerIsPaused = false;
-
-    ledgerScrollPauseTimeout = setTimeout(() => {
-      ledgerIsPaused = true;
-
-      ledgerScrollPauseTimeout = setTimeout(() => {
-        cycle();
-      }, SCROLL_CONFIG.pauseTime);
-    }, SCROLL_CONFIG.moveTime);
-  }
-
-  ledgerScrollInterval = setInterval(move, SCROLL_CONFIG.stepTime);
-  cycle();
-
-  ledgerContainer.onmouseenter = () => {
-    ledgerIsPaused = true;
-  };
-
-  ledgerContainer.onmouseleave = () => {
-    ledgerIsPaused = false;
-  };
+  ledgerScrollInterval = setInterval(
+    moveLedgerLoop,
+    SCROLL_CONFIG.stepTime || 30
+  );
 }
 
 // ==========================================
