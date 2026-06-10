@@ -11,11 +11,9 @@
 // To get a direct download link from a Google Drive file, change the URL structure:
 // From: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
 // To: https://drive.google.com/uc?export=download&id=FILE_IDe
-const AGENTS_CSV_URL =
-  "https://docs.google.com/spreadsheets/d/1YeplpWhNLgwGuT1Sbbz_TMkqKwggl1Kdi8JIc3_gM0w/export?format=csv&gid=605948154";
-const GOOGLE_SHEETS_XLSX_URL =
-  "https://docs.google.com/spreadsheets/d/1YeplpWhNLgwGuT1Sbbz_TMkqKwggl1Kdi8JIc3_gM0w/export?format=csv&gid=1195051681";
-  
+const APPS_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbz91nrsNQq-CgjkShDAOgwVPC28TC_yRjjPkuGm8ik-qXpiwRFLnDHYIEgg89hp7A1m/exec";
+
 // Refresh interval (in milliseconds). Default: 1 minute.
 const DATA_REFRESH_INTERVAL = 1 * 60 * 1000;
 
@@ -59,41 +57,45 @@ function updateClock() {
 // ==========================================
 // DATA FETCHING & PARSING
 // ==========================================
+
+function fetchJSONP(url) {
+  return new Promise((resolve, reject) => {
+    const callbackName = "jsonpCallback_" + Date.now();
+
+    window[callbackName] = function(data) {
+      resolve(data);
+      delete window[callbackName];
+      script.remove();
+    };
+
+    const script = document.createElement("script");
+
+    script.src =
+      `${url}?callback=${callbackName}&cacheBust=${Date.now()}`;
+
+    script.onerror = function() {
+      reject(new Error("JSONP request failed"));
+    };
+
+    document.body.appendChild(script);
+  });
+}
+
 async function fetchData() {
   try {
-    const [salesResponse, agentsResponse] = await Promise.all([
-      fetch(GOOGLE_SHEETS_XLSX_URL + `&cacheBust=${Date.now()}`),
-      fetch(AGENTS_CSV_URL + `&cacheBust=${Date.now()}`)
-    ]);
+    const data = await fetchJSONP(APPS_SCRIPT_URL);
 
-    const salesText = await salesResponse.text();
-    const agentsText = await agentsResponse.text();
+    console.log("MASTER:", data.master.length);
+    console.log("AGENTS:", data.agents.length);
 
-    const salesWorkbook = XLSX.read(salesText, { type: "string" });
-    const agentsWorkbook = XLSX.read(agentsText, { type: "string" });
+    processData(data.master, data.agents);
 
-    const salesSheetName = salesWorkbook.SheetNames[0];
-    const agentsSheetName = agentsWorkbook.SheetNames[0];
-
-    const salesRows = XLSX.utils.sheet_to_json(
-      salesWorkbook.Sheets[salesSheetName],
-      { defval: "" }
-    );
-
-    const agentRows = XLSX.utils.sheet_to_json(
-      agentsWorkbook.Sheets[agentsSheetName],
-      { defval: "" }
-    );
-
-    processData(salesRows, agentRows);
   } catch (err) {
-    console.error("Error fetching or parsing CSV data:", err);
-
-    if (isFirstLoad) {
-      document.getElementById("topPerformerName").textContent = "Data Error";
-    }
+    console.error("Error fetching Apps Script JSONP data:", err);
   }
 }
+
+
 function getCurrentMonthLabel() {
   const months = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -104,38 +106,29 @@ function getCurrentMonthLabel() {
 
   return `${months[now.getMonth()]} ${now.getFullYear()}`;
 }
+
 function processData(rawData, agentRows = []) {
+  
   const allowedStatuses = ["enrolled", "active", "1st cleared", "2nd cleared"];
+  
   const groupedAgents = {};
   const currentMonth = getCurrentMonthLabel().toLowerCase();
 
+
   rawData.forEach((row) => {
-    const rowMonth = String(row["Month"] || "")
-      .trim()
-      .toLowerCase();
+    const rowMonth = String(row["Month"] || "").trim().toLowerCase();
 
-    if (rowMonth !== currentMonth) {
-      return;
-    }
+    if (rowMonth !== currentMonth) return;
 
-    const status = String(row["Status"] || "")
-      .trim()
-      .toLowerCase();
+    const status = String(row["Status"] || "").trim().toLowerCase();
 
-    if (!allowedStatuses.includes(status)) {
-      return;
-    }
+    if (!allowedStatuses.includes(status)) return;
 
-    const name = String(
-      row["Full Name"] ||
-      row["FullName"] ||
-      row["Agent"] ||
-      row["Sales Rep"] ||
-      row["Representative"] ||
-      "Unknown Agent"
-    ).trim();
+    const name = String(row["Agent"] || "").trim();
 
-    const rawDebt = row["Debt"] || row["debt"] || 0;
+    if (!name) return;
+
+    const rawDebt = row["Debt"] || 0;
 
     const debt =
       typeof rawDebt === "string"
@@ -147,17 +140,16 @@ function processData(rawData, agentRows = []) {
         name: name,
         totalSales: 0,
         deals: 0,
-        team: row["Team"] || "",
-        region: row["Region"] || "",
+        team: row["Company"] || "",
+        region: "",
         imagePath: generateImagePath(name),
       };
     }
-
+      
     groupedAgents[name].totalSales += isNaN(debt) ? 0 : debt;
     groupedAgents[name].deals += 1;
   });
 
-  // Agrega agentes que no vendieron
   agentRows.forEach((row) => {
     const name = String(row["Agent"] || "").trim();
 
@@ -168,7 +160,7 @@ function processData(rawData, agentRows = []) {
         name: name,
         totalSales: 0,
         deals: 0,
-        team: row["Team"] || "",
+        team: "",
         region: "",
         imagePath: generateImagePath(name),
       };
