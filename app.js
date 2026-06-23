@@ -12,7 +12,7 @@
 // From: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
 // To: https://drive.google.com/uc?export=download&id=FILE_IDe
 const APPS_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbz91nrsNQq-CgjkShDAOgwVPC28TC_yRjjPkuGm8ik-qXpiwRFLnDHYIEgg89hp7A1m/exec";
+  "https://script.google.com/macros/s/AKfycbzOKOeCODt7isV51xvOOu0UbEgzxu9SsPytmCS7kBcJZzl79gLlZUNLd8B5Rc9FrfqR/exec";
 
 // Refresh interval (in milliseconds). Default: 1 minute.
 const DATA_REFRESH_INTERVAL = 1 * 60 * 1000;
