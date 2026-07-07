@@ -34,6 +34,7 @@ let currentSlideIndex = 0;
 let slideshowTimer = null;
 let dataRefreshTimer = null;
 let isFirstLoad = true;
+let lastDataSignature = "";
 
 // ==========================================
 // INITIALIZATION
@@ -65,7 +66,7 @@ function fetchJSONP(url) {
   return new Promise((resolve, reject) => {
     const callbackName = "jsonpCallback_" + Date.now();
 
-    window[callbackName] = function(data) {
+    window[callbackName] = function (data) {
       resolve(data);
       delete window[callbackName];
       script.remove();
@@ -76,7 +77,7 @@ function fetchJSONP(url) {
     script.src =
       `${url}?callback=${callbackName}&cacheBust=${Date.now()}`;
 
-    script.onerror = function() {
+    script.onerror = function () {
       reject(new Error("JSONP request failed"));
     };
 
@@ -111,9 +112,9 @@ function getCurrentMonthLabel() {
 }
 
 function processData(rawData, agentRows = []) {
-  
+
   const allowedStatuses = ["enrolled", "active", "1st cleared", "2nd cleared"];
-  
+
   const groupedAgents = {};
   const currentMonth = getCurrentMonthLabel().toLowerCase();
 
@@ -148,7 +149,7 @@ function processData(rawData, agentRows = []) {
         imagePath: generateImagePath(name),
       };
     }
-      
+
     groupedAgents[name].totalSales += isNaN(debt) ? 0 : debt;
     groupedAgents[name].deals += 1;
   });
@@ -177,6 +178,21 @@ function processData(rawData, agentRows = []) {
   salesData.forEach((agent, index) => {
     agent.rank = index + 1;
   });
+
+  const newSignature = JSON.stringify(
+  salesData.map((agent) => ({
+    name: agent.name,
+    totalSales: agent.totalSales,
+    deals: agent.deals,
+    team: agent.team,
+  }))
+  );
+
+  if (newSignature === lastDataSignature) {
+    return;
+  }
+
+  lastDataSignature = newSignature;
 
   updateUI();
 
@@ -343,77 +359,55 @@ function updateLedger() {
   setTimeout(setupAutoScroll, 300);
 }
 
-let ledgerScrollInterval = null;
-let ledgerScrollPauseTimeout = null;
-let ledgerIsPaused = false;
+let ledgerScrollRafId = null;
+let ledgerLastTimestamp = 0;
 
 const SCROLL_CONFIG = {
-  speed: 1,
-  stepTime: 40,
-  moveTime: 2000,
-  pauseTime: 3000,
+  pixelsPerSecond: 22,
 };
 
 function setupAutoScroll() {
   const ledgerContainer = document.getElementById("ledgerAutoScroll");
   const ledgerBody = document.getElementById("ledgerTableBody");
 
-  if (!ledgerContainer) {
-    console.error("No existe #ledgerAutoScroll");
-    return;
+  if (!ledgerContainer || !ledgerBody) return;
+
+  if (ledgerScrollRafId) {
+    cancelAnimationFrame(ledgerScrollRafId);
+    ledgerScrollRafId = null;
   }
 
-  if (!ledgerBody) {
-    console.error("No existe #ledgerTableBody");
-    return;
-  }
-
-  // Matar scroll anterior para que NO se acumule
-  if (ledgerScrollInterval) {
-    clearInterval(ledgerScrollInterval);
-    ledgerScrollInterval = null;
-  }
-
-  if (ledgerScrollPauseTimeout) {
-    clearTimeout(ledgerScrollPauseTimeout);
-    ledgerScrollPauseTimeout = null;
-  }
-
-  ledgerIsPaused = false;
-
-  // Guardamos la lista original antes de duplicarla
   const originalHTML = ledgerBody.innerHTML.trim();
 
-  if (!originalHTML) {
-    return;
-  }
+  if (!originalHTML) return;
 
-  // Duplicamos las filas para crear efecto de lista infinita
   ledgerBody.innerHTML = originalHTML + originalHTML;
 
-  // La mitad del alto total equivale a la lista original
   const loopHeight = ledgerBody.scrollHeight / 2;
 
-  // Empezar desde arriba
   ledgerContainer.scrollTop = 0;
+  ledgerLastTimestamp = 0;
 
-  function moveLedgerLoop() {
-    if (loopHeight <= ledgerContainer.clientHeight) {
-      return;
+  function animateScroll(timestamp) {
+    if (!ledgerLastTimestamp) {
+      ledgerLastTimestamp = timestamp;
     }
 
-    ledgerContainer.scrollTop += SCROLL_CONFIG.speed || 1;
+    const deltaSeconds = (timestamp - ledgerLastTimestamp) / 1000;
+    ledgerLastTimestamp = timestamp;
 
-    // Cuando llega a la segunda copia, vuelve al inicio sin que se note
-    if (ledgerContainer.scrollTop >= loopHeight) {
-      ledgerContainer.scrollTop = ledgerContainer.scrollTop - loopHeight;
+    if (loopHeight > ledgerContainer.clientHeight) {
+      ledgerContainer.scrollTop += SCROLL_CONFIG.pixelsPerSecond * deltaSeconds;
+
+      if (ledgerContainer.scrollTop >= loopHeight) {
+        ledgerContainer.scrollTop -= loopHeight;
+      }
     }
+
+    ledgerScrollRafId = requestAnimationFrame(animateScroll);
   }
 
-  ledgerScrollInterval = setInterval(
-    moveLedgerLoop,
-    SCROLL_CONFIG.stepTime || 30
-  );
+  ledgerScrollRafId = requestAnimationFrame(animateScroll);
 }
 
 // ==========================================

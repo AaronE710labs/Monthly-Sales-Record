@@ -14,9 +14,8 @@
 }
 
 .glass-card {
-    background: rgba(23, 31, 51, 0.7);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(58, 12, 12, 0.1);
+    background: rgba(23, 31, 51, 0.86);
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .glow-primary {
@@ -60,18 +59,16 @@
 .revenue-shimmer {
     position: relative;
     display: inline-block;
-    overflow: visible;
+    overflow: hidden;
 }
 
 .revenue-shimmer::after {
     content: "";
-    position: fixed;
-    top: -4px;
-    bottom: 30px;
-    left: 40%;
-    right: 40%;
-    width: 40%;
-    height: 1000px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 90px;
+    height: 100%;
     pointer-events: none;
     background: linear-gradient(
         90deg,
@@ -79,16 +76,17 @@
         rgba(255, 255, 255, 0.12),
         transparent
     );
-    transform: skewX(-20deg);
-    animation: sweep 7s infinite;
+    transform: translate3d(-160%, 0, 0) skewX(-20deg);
+    animation: sweepOptimized 7s linear infinite;
+    will-change: transform;
 }
 
-@keyframes sweep {
+@keyframes sweepOptimized {
     0% {
-        left: -100%;
+        transform: translate3d(-160%, 0, 0) skewX(-20deg);
     }
     100% {
-        left: 600%;
+        transform: translate3d(720%, 0, 0) skewX(-20deg);
     }
 }
 
