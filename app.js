@@ -1,34 +1,44 @@
 /**
  * SalesCommand Dashboard Logic
- * Fetches data from CSV, populates the UI, and manages the slideshow.
+ * Optimized for TV displays:
+ * - Fixed 1920x1080 canvas support
+ * - Smooth RAF-based ledger infinite loop
+ * - Safer data refresh without unnecessary DOM rebuilds
+ * - PNG image support preserved
+ * - Apps Script JSONP connection preserved
  */
 
 // ==========================================
 // CONFIGURATION
 // ==========================================
 
-// IMPORTANT: Paste your Google Drive Excel (.xlsx) direct download URL here.
-// To get a direct download link from a Google Drive file, change the URL structure:
-// From: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
-// To: https://drive.google.com/uc?export=download&id=FILE_IDe
 const APPS_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbzOKOeCODt7isV51xvOOu0UbEgzxu9SsPytmCS7kBcJZzl79gLlZUNLd8B5Rc9FrfqR/exec";
 
-// Refresh interval (in milliseconds). Default: 1 minute.
 const DATA_REFRESH_INTERVAL = 1 * 60 * 1000;
-
-// Slideshow interval (in milliseconds). Default: 10 seconds.
 const SLIDESHOW_INTERVAL = 10 * 1000;
 
-// Local fallback data if URL is empty
-const LOCAL_FALLBACK_XLSX = "data.csv"; // Using csv temporarily locally as fallback, but URL will use XLSX.
+const DEFAULT_IMAGE = "images/default-user.png";
 
-// EXCLUDED_AGENTS is used to filter out specific agents from the dashboard. Names should be in lowercase and trimmed.
 const EXCLUDED_AGENTS = ["diego moreira"];
+
+const ALLOWED_STATUSES = new Set([
+  "enrolled",
+  "active",
+  "1st cleared",
+  "2nd cleared",
+]);
+
+const LEDGER_CONFIG = {
+  pixelsPerSecond: 24,
+};
+
+const FEATURED_LIMIT = 5;
 
 // ==========================================
 // STATE
 // ==========================================
+
 let salesData = [];
 let currentSlideIndex = 0;
 let slideshowTimer = null;
@@ -36,50 +46,144 @@ let dataRefreshTimer = null;
 let isFirstLoad = true;
 let lastDataSignature = "";
 
+let ledgerRafId = null;
+let ledgerLastTimestamp = 0;
+let ledgerOffset = 0;
+let ledgerLoopDistance = 0;
+
+let dom = {};
+
 // ==========================================
 // INITIALIZATION
 // ==========================================
+
 document.addEventListener("DOMContentLoaded", () => {
+  cacheDom();
+
   updateClock();
-  setInterval(updateClock, 60000);
+  setInterval(updateClock, 60 * 1000);
 
   fetchData();
-  // Set up regular data fetching
+
+  if (dataRefreshTimer) clearInterval(dataRefreshTimer);
   dataRefreshTimer = setInterval(fetchData, DATA_REFRESH_INTERVAL);
 });
 
+function cacheDom() {
+  dom = {
+    clock: document.getElementById("clock"),
+    currentMonthLabel: document.getElementById("currentMonthLabel"),
+    appStatus: document.getElementById("appStatus"),
+    statusPill: document.getElementById("statusPill"),
+
+    totalCompanySales: document.getElementById("totalCompanySales"),
+    totalAgents: document.getElementById("totalAgents"),
+    topPerformerName: document.getElementById("topPerformerName"),
+
+    top3Grid: document.getElementById("top3Grid"),
+
+    ledgerViewport: document.getElementById("ledgerAutoScroll"),
+    ledgerTrack: document.getElementById("ledgerScrollTrack"),
+    ledgerBody: document.getElementById("ledgerTableBody"),
+
+    featuredCard: document.getElementById("featuredCardContainer"),
+    featuredImg: document.getElementById("featuredImg"),
+    featuredRank: document.getElementById("featuredRank"),
+    featuredName: document.getElementById("featuredName"),
+    featuredTeam: document.getElementById("featuredTeam"),
+    featuredSales: document.getElementById("featuredSales"),
+    featuredDeals: document.getElementById("featuredDeals"),
+    slideshowCounter: document.getElementById("slideshowCounter"),
+  };
+}
+
+// ==========================================
+// CLOCK / STATUS
+// ==========================================
+
 function updateClock() {
-  const clock = document.getElementById("clock");
   const now = new Date();
+
   const timeStr = now.toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
   });
-  if (clock) clock.textContent = `Last Updated: ${timeStr}`;
+
+  if (dom.clock) {
+    dom.clock.textContent = `Last Updated: ${timeStr}`;
+  }
+
+  if (dom.currentMonthLabel) {
+    dom.currentMonthLabel.textContent = getCurrentMonthLabel();
+  }
+}
+
+function setStatus(message, type = "ok") {
+  if (dom.appStatus) {
+    dom.appStatus.textContent = message;
+    dom.appStatus.dataset.status = type;
+  }
+
+  if (dom.statusPill) {
+    dom.statusPill.dataset.status = type;
+  }
 }
 
 // ==========================================
-// DATA FETCHING & PARSING
+// DATA FETCHING
 // ==========================================
 
 function fetchJSONP(url) {
   return new Promise((resolve, reject) => {
-    const callbackName = "jsonpCallback_" + Date.now();
-
-    window[callbackName] = function (data) {
-      resolve(data);
-      delete window[callbackName];
-      script.remove();
-    };
+    const callbackName = `jsonpCallback_${Date.now()}_${Math.floor(
+      Math.random() * 100000
+    )}`;
 
     const script = document.createElement("script");
+    const timeoutMs = 15000;
 
-    script.src =
-      `${url}?callback=${callbackName}&cacheBust=${Date.now()}`;
+    let finished = false;
+
+    function cleanup() {
+      try {
+        delete window[callbackName];
+      } catch (err) {
+        window[callbackName] = undefined;
+      }
+
+      if (script && script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    }
+
+    const timeout = setTimeout(() => {
+      if (finished) return;
+
+      finished = true;
+      cleanup();
+      reject(new Error("JSONP request timed out"));
+    }, timeoutMs);
+
+    window[callbackName] = function (data) {
+      if (finished) return;
+
+      finished = true;
+      clearTimeout(timeout);
+      cleanup();
+      resolve(data);
+    };
 
     script.onerror = function () {
+      if (finished) return;
+
+      finished = true;
+      clearTimeout(timeout);
+      cleanup();
       reject(new Error("JSONP request failed"));
     };
+
+    const separator = url.includes("?") ? "&" : "?";
+    script.src = `${url}${separator}callback=${callbackName}&cacheBust=${Date.now()}`;
 
     document.body.appendChild(script);
   });
@@ -87,23 +191,47 @@ function fetchJSONP(url) {
 
 async function fetchData() {
   try {
+    setStatus("Syncing", "loading");
+
     const data = await fetchJSONP(APPS_SCRIPT_URL);
 
-    console.log("MASTER:", data.master.length);
-    console.log("AGENTS:", data.agents.length);
+    if (!data || data.ok === false) {
+      throw new Error(
+        data && data.error ? data.error : "Invalid Apps Script response"
+      );
+    }
 
-    processData(data.master, data.agents);
+    const masterRows = Array.isArray(data.master) ? data.master : [];
+    const agentRows = Array.isArray(data.agents) ? data.agents : [];
 
+    processData(masterRows, agentRows);
+
+    setStatus("Live", "ok");
+    updateClock();
   } catch (err) {
     console.error("Error fetching Apps Script JSONP data:", err);
+    setStatus("Connection Issue", "error");
   }
 }
 
+// ==========================================
+// DATA PROCESSING
+// ==========================================
 
 function getCurrentMonthLabel() {
   const months = [
-    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
   ];
 
   const now = new Date();
@@ -112,80 +240,70 @@ function getCurrentMonthLabel() {
 }
 
 function processData(rawData, agentRows = []) {
-
-  const allowedStatuses = ["enrolled", "active", "1st cleared", "2nd cleared"];
-
   const groupedAgents = {};
   const currentMonth = getCurrentMonthLabel().toLowerCase();
 
-
   rawData.forEach((row) => {
-    const rowMonth = String(row["Month"] || "").trim().toLowerCase();
+    const rowMonth = getCell(row, ["Month", " X", "X"]).toLowerCase();
 
     if (rowMonth !== currentMonth) return;
 
-    const status = String(row["Status"] || "").trim().toLowerCase();
+    const status = getCell(row, ["Status"]).toLowerCase();
 
-    if (!allowedStatuses.includes(status)) return;
+    if (!ALLOWED_STATUSES.has(status)) return;
 
-    const name = String(row["Agent"] || "").trim();
+    const name = getCell(row, ["Agent"]);
 
     if (!name) return;
     if (EXCLUDED_AGENTS.includes(name.toLowerCase())) return;
-    const rawDebt = row["Debt"] || 0;
 
-    const debt =
-      typeof rawDebt === "string"
-        ? parseFloat(rawDebt.replace(/[^0-9.-]+/g, ""))
-        : Number(rawDebt);
+    const debt = parseMoney(getCell(row, ["Debt"]));
+    const company = getCell(row, ["Company"]);
 
     if (!groupedAgents[name]) {
-      groupedAgents[name] = {
-        name: name,
-        totalSales: 0,
-        deals: 0,
-        team: row["Company"] || "",
-        region: "",
-        imagePath: generateImagePath(name),
-      };
+      groupedAgents[name] = createAgentRecord(name, company);
     }
 
-    groupedAgents[name].totalSales += isNaN(debt) ? 0 : debt;
+    groupedAgents[name].totalSales += debt;
     groupedAgents[name].deals += 1;
+
+    if (!groupedAgents[name].team && company) {
+      groupedAgents[name].team = company;
+    }
   });
 
   agentRows.forEach((row) => {
-    const name = String(row["Agent"] || "").trim();
+    const name = getCell(row, ["Agent", "Name"]);
 
     if (!name) return;
     if (EXCLUDED_AGENTS.includes(name.toLowerCase())) return;
+
     if (!groupedAgents[name]) {
-      groupedAgents[name] = {
-        name: name,
-        totalSales: 0,
-        deals: 0,
-        team: "",
-        region: "",
-        imagePath: generateImagePath(name),
-      };
+      groupedAgents[name] = createAgentRecord(
+        name,
+        getCell(row, ["Company", "Team"])
+      );
     }
   });
 
-  salesData = Object.values(groupedAgents);
-
-  salesData.sort((a, b) => b.totalSales - a.totalSales);
-
-  salesData.forEach((agent, index) => {
-    agent.rank = index + 1;
-  });
+  const nextSalesData = Object.values(groupedAgents)
+    .sort((a, b) => {
+      if (b.totalSales !== a.totalSales) return b.totalSales - a.totalSales;
+      return a.name.localeCompare(b.name);
+    })
+    .map((agent, index) => ({
+      ...agent,
+      rank: index + 1,
+    }));
 
   const newSignature = JSON.stringify(
-  salesData.map((agent) => ({
-    name: agent.name,
-    totalSales: agent.totalSales,
-    deals: agent.deals,
-    team: agent.team,
-  }))
+    nextSalesData.map((agent) => ({
+      name: agent.name,
+      totalSales: Math.round(agent.totalSales * 100) / 100,
+      deals: agent.deals,
+      team: agent.team,
+      rank: agent.rank,
+    }))
   );
 
   if (newSignature === lastDataSignature) {
@@ -193,7 +311,13 @@ function processData(rawData, agentRows = []) {
   }
 
   lastDataSignature = newSignature;
+  salesData = nextSalesData;
 
+  if (currentSlideIndex >= Math.min(FEATURED_LIMIT, salesData.length)) {
+    currentSlideIndex = 0;
+  }
+
+  preloadFeaturedImages();
   updateUI();
 
   if (isFirstLoad) {
@@ -202,271 +326,388 @@ function processData(rawData, agentRows = []) {
   }
 }
 
+function createAgentRecord(name, team = "") {
+  return {
+    name,
+    totalSales: 0,
+    deals: 0,
+    team: team || "",
+    imagePath: generateImagePath(name),
+    rank: 0,
+  };
+}
+
+function getCell(row, keys) {
+  if (!row) return "";
+
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(row, key)) {
+      return String(row[key] ?? "").trim();
+    }
+  }
+
+  return "";
+}
+
+function parseMoney(value) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  const cleaned = String(value || "").replace(/[^0-9.-]+/g, "");
+  const parsed = parseFloat(cleaned);
+
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function generateImagePath(fullName) {
-  // Convert name to lowercase, replace spaces with hyphens, remove special chars/accents
-  const normalized = fullName
+  const normalized = String(fullName || "")
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // remove accents
-    .replace(/[^a-z0-9 ]/g, "") // remove special chars
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9 ]/g, "")
     .trim()
     .replace(/\s+/g, "-");
+
   return `images/${normalized}.png`;
+}
+
+function preloadFeaturedImages() {
+  salesData.slice(0, FEATURED_LIMIT).forEach((agent) => {
+    const img = new Image();
+    img.src = agent.imagePath;
+  });
+
+  const fallback = new Image();
+  fallback.src = DEFAULT_IMAGE;
 }
 
 // ==========================================
 // UI UPDATES
 // ==========================================
+
 function updateUI() {
-  if (salesData.length === 0) return;
-
-  // Update Global Metrics
-  const totalCompanySales = salesData.reduce(
-    (sum, agent) => sum + agent.totalSales,
-    0,
-  );
-  document.getElementById("totalCompanySales").innerHTML =
-    formatCurrencyLarge(totalCompanySales);
-  document.getElementById("totalAgents").textContent =
-    salesData.length.toLocaleString();
-  document.getElementById("topPerformerName").textContent = salesData[0].name;
-
-  // Update Top 3 Grid
+  updateGlobalMetrics();
   updateTop3();
-
-  // Update Ledger
   updateLedger();
-
-  // Update Featured (if we need to refresh the current slide)
   renderFeaturedSlide(currentSlideIndex);
 }
 
+function updateGlobalMetrics() {
+  const totalCompanySales = salesData.reduce(
+    (sum, agent) => sum + agent.totalSales,
+    0
+  );
+
+  if (dom.totalCompanySales) {
+    dom.totalCompanySales.innerHTML = formatCurrencyLarge(totalCompanySales);
+  }
+
+  if (dom.totalAgents) {
+    dom.totalAgents.textContent = salesData.length.toLocaleString();
+  }
+
+  if (dom.topPerformerName) {
+    dom.topPerformerName.textContent = salesData[0]
+      ? salesData[0].name
+      : "No data";
+  }
+}
+
 function formatCurrencyLarge(value) {
+  const safeValue = Number.isFinite(value) ? value : 0;
+
   const formatter = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   });
-  const formatted = formatter.format(Math.floor(value));
-  const cents = (value % 1).toFixed(2).substring(2);
-  return `${formatted}.<span class="text-sm xs:text-base sm:text-lg md:text-xl lg:text-2xl opacity-40">${cents}</span>`;
+
+  const formatted = formatter.format(Math.floor(safeValue));
+  const cents = Math.abs(safeValue % 1).toFixed(2).substring(2);
+
+  return `${formatted}.<span>${cents}</span>`;
 }
 
 function formatCurrency(value) {
+  const safeValue = Number.isFinite(value) ? value : 0;
+
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(safeValue);
 }
 
 // ==========================================
-// TOP 3 GRID
+// TOP 3
 // ==========================================
+
 function updateTop3() {
-  const container = document.getElementById("top3Grid");
-  container.innerHTML = "";
+  if (!dom.top3Grid) return;
 
   const top3 = salesData.slice(0, 3);
-  const badges = [
-    {
-      bg: "from-[#FDE047] to-[#CA8A04]",
-      text: "text-on-tertiary-fixed",
-      label: "Elite Performer",
-      ring: "ring-primary",
-    },
-    {
-      bg: "from-[#F1F5F9] to-[#94A3B8]",
-      text: "text-inverse-on-surface",
-      label: "Global Runner-Up",
-      ring: "ring-secondary",
-    },
-    {
-      bg: "from-[#FFEDD5] to-[#92400E]",
-      text: "text-on-tertiary",
-      label: "Top Closer",
-      ring: "ring-tertiary-container/50",
-    },
-  ];
 
-  top3.forEach((agent, i) => {
-    const style = badges[i];
+  if (!top3.length) {
+    dom.top3Grid.innerHTML = `
+      <div class="empty-state">
+        Waiting for sales data...
+      </div>
+    `;
+    return;
+  }
 
-    const cardHtml = `
-        <div class="glass-card rounded-lg xs:rounded-xl sm:rounded-2xl p-2 xs:p-3 sm:p-4 lg:p-5 border-t-[1px] border-white/20 transition-all flex flex-col h-full">
-            <div class="flex justify-between items-start mb-2">
-                <div class="relative">
-                    <div class="w-10 xs:w-12 sm:w-14 h-10 xs:h-12 sm:h-14 rounded-full p-1 ring-1.5 ${style.ring} overflow-hidden bg-surface-container-highest">
-                        <img alt="${agent.name}" class="w-full h-full object-cover rounded-full" src="${agent.imagePath}" onerror="this.src='images/default-user.png'"/>
-                    </div>
-                    <div class="absolute -bottom-0.5 -right-0.5 bg-gradient-to-br ${style.bg} w-4 xs:w-5 sm:w-5 h-4 xs:h-5 sm:h-5 rounded-full flex items-center justify-center border border-surface xs:border-2 shadow-md">
-                        <span class="text-xs font-bold ${style.text}">${agent.rank}</span>
-                    </div>
-                </div>
+  const labels = ["Elite Performer", "Global Runner-Up", "Top Closer"];
+
+  dom.top3Grid.innerHTML = top3
+    .map((agent, index) => {
+      const medalClass =
+        index === 0 ? "gold" : index === 1 ? "silver" : "bronze";
+
+      return `
+        <article class="top-card ${medalClass}">
+          <div class="top-card-header">
+            <div class="avatar-wrap small ${medalClass}">
+              <img
+                src="${escapeAttr(agent.imagePath)}"
+                alt="${escapeAttr(agent.name)}"
+                decoding="async"
+                loading="eager"
+                onerror="this.onerror=null;this.src='${DEFAULT_IMAGE}'"
+              />
+              <span class="rank-dot">${agent.rank}</span>
             </div>
-            <div class="space-y-0.5 mb-2 flex-1">
-                <h4 class="text-sm xs:text-base sm:text-lg lg:text-lg font-bold leading-tight truncate" title="${agent.name}">${agent.name}</h4>
-                <p class="text-xs xs:text-xs sm:text-xs lg:text-sm font-bold text-outline truncate" title="${agent.team}">${agent.team}</p>
-            </div>
-            <div>
-                <h5 class="text-lg xs:text-xl sm:text-2xl lg:text-3xl font-bold text-white leading-none">${formatCurrency(agent.totalSales)}</h5>
-            </div>
-        </div>
-        `;
-    container.innerHTML += cardHtml;
-  });
+
+            <span class="performance-tag">${labels[index]}</span>
+          </div>
+
+          <div class="top-card-body">
+            <h4 title="${escapeAttr(agent.name)}">${escapeHtml(agent.name)}</h4>
+            <p title="${escapeAttr(agent.team)}">${escapeHtml(
+        agent.team || "Team"
+      )}</p>
+          </div>
+
+          <div class="top-card-footer">
+            <strong>${formatCurrency(agent.totalSales)}</strong>
+            <span>${agent.deals} deals</span>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
 }
 
 // ==========================================
 // LEDGER
 // ==========================================
+
 function updateLedger() {
-  const tbody = document.getElementById("ledgerTableBody");
+  if (!dom.ledgerBody || !dom.ledgerTrack || !dom.ledgerViewport) return;
 
-  let html = "";
-  salesData.forEach((agent) => {
-    // Rank visual style
-    let rankHtml = "";
-    if (agent.rank === 1)
-      rankHtml = `<div class="w-5 xs:w-6 sm:w-7 h-5 xs:h-6 sm:h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs">1</div>`;
-    else
-      rankHtml = `<div class="w-5 xs:w-6 sm:w-7 h-5 xs:h-6 sm:h-7 rounded-full bg-surface-container-highest text-outline flex items-center justify-center font-bold text-xs">${agent.rank}</div>`;
+  cancelLedgerLoop();
 
-    // Profile initals fallback logic can be done via CSS or just stick to image with onerror
-    html += `
-        <tr class="hover:bg-surface-bright/30 transition-colors border-b border-outline-variant/30">
-            <td class="px-2 xs:px-3 sm:px-4 py-2 xs:py-2.5 sm:py-3">${rankHtml}</td>
-            <td class="px-2 xs:px-3 sm:px-4 py-2 xs:py-2.5 sm:py-3">
-                <div class="flex items-center gap-1.5 xs:gap-2 sm:gap-2.5">
-                    <div class="w-7 xs:w-8 sm:w-9 h-7 xs:h-8 sm:h-9 rounded-full bg-surface-container-highest overflow-hidden border border-outline/30 shrink-0">
-                        <img alt="${agent.name}" class="w-full h-full object-cover" src="${agent.imagePath}" onerror="this.src='images/default-user.png'"/>
-                    </div>
-                    <span class="font-bold text-xs xs:text-sm sm:text-base text-white truncate max-w-xs xs:max-w-sm" title="${agent.name}">${agent.name}</span>
-                </div>
-            </td>
-            <td class="hidden sm:table-cell px-2 xs:px-3 sm:px-4 py-2 xs:py-2.5 sm:py-3 text-outline text-xs xs:text-sm sm:text-base truncate max-w-xs" title="${agent.team}">${agent.team}</td>
-            <td class="px-2 xs:px-3 sm:px-4 text-right font-bold text-white text-xs xs:text-sm sm:text-base py-2 xs:py-2.5 sm:py-3">${formatCurrency(agent.totalSales)}</td>
-            <td class="px-2 xs:px-3 sm:px-4 text-right font-medium py-2 xs:py-2.5 sm:py-3 ${agent.goalPct >= 100 ? "text-green-400" : "text-outline"} text-xs xs:text-sm sm:text-base">${agent.deals}</td>
-        </tr>
-        `;
+  if (!salesData.length) {
+    dom.ledgerBody.innerHTML = `
+      <tr class="ledger-row">
+        <td colspan="5" class="ledger-empty">Waiting for sales data...</td>
+      </tr>
+    `;
+
+    dom.ledgerTrack.style.transform = "translate3d(0, 0, 0)";
+    return;
+  }
+
+  const singleRowsHTML = salesData.map(buildLedgerRow).join("");
+
+  dom.ledgerTrack.style.transform = "translate3d(0, 0, 0)";
+  dom.ledgerBody.innerHTML = singleRowsHTML;
+
+  requestAnimationFrame(() => {
+    const singleHeight = dom.ledgerBody.getBoundingClientRect().height;
+    const viewportHeight = dom.ledgerViewport.clientHeight;
+
+    if (!singleHeight || singleHeight <= 0) return;
+
+    const copiesNeeded = Math.max(
+      3,
+      Math.ceil(viewportHeight / singleHeight) + 3
+    );
+
+    dom.ledgerBody.innerHTML = singleRowsHTML.repeat(copiesNeeded);
+
+    ledgerLoopDistance = singleHeight;
+    ledgerOffset = 0;
+    ledgerLastTimestamp = 0;
+
+    ledgerRafId = requestAnimationFrame(animateLedgerLoop);
   });
-  tbody.innerHTML = html;
-
-  // Reiniciar el scroll después de actualizar el contenido
-
-  setTimeout(setupAutoScroll, 300);
 }
 
-let ledgerScrollRafId = null;
-let ledgerLastTimestamp = 0;
+function buildLedgerRow(agent) {
+  const rankClass = agent.rank === 1 ? "rank-pill first" : "rank-pill";
 
-const SCROLL_CONFIG = {
-  pixelsPerSecond: 22,
-};
+  return `
+    <tr class="ledger-row">
+      <td class="rank-cell">
+        <span class="${rankClass}">${agent.rank}</span>
+      </td>
 
-function setupAutoScroll() {
-  const ledgerContainer = document.getElementById("ledgerAutoScroll");
-  const ledgerBody = document.getElementById("ledgerTableBody");
+      <td class="rep-cell">
+        <div class="rep-profile">
+          <img
+            src="${escapeAttr(agent.imagePath)}"
+            alt="${escapeAttr(agent.name)}"
+            decoding="async"
+            loading="lazy"
+            onerror="this.onerror=null;this.src='${DEFAULT_IMAGE}'"
+          />
+          <span title="${escapeAttr(agent.name)}">${escapeHtml(agent.name)}</span>
+        </div>
+      </td>
 
-  if (!ledgerContainer || !ledgerBody) return;
+      <td class="team-cell" title="${escapeAttr(agent.team)}">
+        ${escapeHtml(agent.team || "—")}
+      </td>
 
-  if (ledgerScrollRafId) {
-    cancelAnimationFrame(ledgerScrollRafId);
-    ledgerScrollRafId = null;
-  }
+      <td class="sales-cell">
+        ${formatCurrency(agent.totalSales)}
+      </td>
 
-  const originalHTML = ledgerBody.innerHTML.trim();
+      <td class="deals-cell">
+        ${agent.deals}
+      </td>
+    </tr>
+  `;
+}
 
-  if (!originalHTML) return;
-
-  ledgerBody.innerHTML = originalHTML + originalHTML;
-
-  const loopHeight = ledgerBody.scrollHeight / 2;
-
-  ledgerContainer.scrollTop = 0;
-  ledgerLastTimestamp = 0;
-
-  function animateScroll(timestamp) {
-    if (!ledgerLastTimestamp) {
-      ledgerLastTimestamp = timestamp;
-    }
-
-    const deltaSeconds = (timestamp - ledgerLastTimestamp) / 1000;
+function animateLedgerLoop(timestamp) {
+  if (!ledgerLastTimestamp) {
     ledgerLastTimestamp = timestamp;
-
-    if (loopHeight > ledgerContainer.clientHeight) {
-      ledgerContainer.scrollTop += SCROLL_CONFIG.pixelsPerSecond * deltaSeconds;
-
-      if (ledgerContainer.scrollTop >= loopHeight) {
-        ledgerContainer.scrollTop -= loopHeight;
-      }
-    }
-
-    ledgerScrollRafId = requestAnimationFrame(animateScroll);
   }
 
-  ledgerScrollRafId = requestAnimationFrame(animateScroll);
+  const deltaSeconds = Math.min((timestamp - ledgerLastTimestamp) / 1000, 0.05);
+  ledgerLastTimestamp = timestamp;
+
+  if (ledgerLoopDistance > 0) {
+    ledgerOffset =
+      (ledgerOffset + LEDGER_CONFIG.pixelsPerSecond * deltaSeconds) %
+      ledgerLoopDistance;
+
+    dom.ledgerTrack.style.transform = `translate3d(0, ${-ledgerOffset}px, 0)`;
+  }
+
+  ledgerRafId = requestAnimationFrame(animateLedgerLoop);
+}
+
+function cancelLedgerLoop() {
+  if (ledgerRafId) {
+    cancelAnimationFrame(ledgerRafId);
+    ledgerRafId = null;
+  }
+
+  ledgerLastTimestamp = 0;
+  ledgerOffset = 0;
 }
 
 // ==========================================
-// SLIDESHOW
+// FEATURED SLIDESHOW
 // ==========================================
+
 function startSlideshow() {
+  if (slideshowTimer) {
+    clearInterval(slideshowTimer);
+  }
+
   renderFeaturedSlide(currentSlideIndex);
 
   slideshowTimer = setInterval(() => {
-    // Trigger exit animation
-    const card = document.getElementById("featuredCardContainer");
-    card.classList.remove("slideshow-enter-active");
-    card.classList.add("slideshow-exit-active");
-
-    setTimeout(() => {
-      currentSlideIndex =
-        (currentSlideIndex + 1) % Math.min(5, salesData.length);
-      renderFeaturedSlide(currentSlideIndex);
-
-      // Trigger enter animation
-      card.classList.remove("slideshow-exit-active");
-      card.classList.add("slideshow-enter-active");
-    }, 100); // Wait for exit animation
+    advanceFeaturedSlide();
   }, SLIDESHOW_INTERVAL);
+}
+
+function advanceFeaturedSlide() {
+  const featuredCount = Math.min(FEATURED_LIMIT, salesData.length);
+
+  if (!featuredCount || !dom.featuredCard) return;
+
+  const nextIndex = (currentSlideIndex + 1) % featuredCount;
+  const nextAgent = salesData[nextIndex];
+
+  const preloader = new Image();
+
+  preloader.onload = () => {
+    switchFeaturedSlide(nextIndex);
+  };
+
+  preloader.onerror = () => {
+    switchFeaturedSlide(nextIndex);
+  };
+
+  preloader.src = nextAgent.imagePath;
+}
+
+function switchFeaturedSlide(nextIndex) {
+  if (!dom.featuredCard) return;
+
+  dom.featuredCard.classList.add("is-switching");
+
+  setTimeout(() => {
+    currentSlideIndex = nextIndex;
+    renderFeaturedSlide(currentSlideIndex);
+
+    requestAnimationFrame(() => {
+      dom.featuredCard.classList.remove("is-switching");
+    });
+  }, 320);
 }
 
 function renderFeaturedSlide(index) {
   if (!salesData[index]) return;
+
   const agent = salesData[index];
-  const featuredCount = Math.min(5, salesData.length);
-  const featuredRegion = document.getElementById("featuredRegion");
-  if (featuredRegion) {
-    featuredRegion.textContent = agent.region;
+  const featuredCount = Math.min(FEATURED_LIMIT, salesData.length);
 
-    document.getElementById("slideshowCounter").textContent =
-      `${index + 1} / ${featuredCount}`;
-    document.getElementById("featuredImg").src = agent.imagePath;
-    document.getElementById("featuredRank").textContent = `#${agent.rank}`;
-    document.getElementById("featuredName").textContent = agent.name;
-    document.getElementById("featuredTeam").textContent = agent.team;
-    document.getElementById("featuredSales").textContent = formatCurrency(
-      agent.totalSales,
-    );
-
-    document.getElementById("featuredGoalPctText").textContent =
-      `${agent.goalPct}%`;
-
-    // Animate progress bar
-    const bar = document.getElementById("featuredGoalBar");
-    bar.style.width = "0%";
-    setTimeout(() => {
-      bar.style.width = `${Math.min(agent.goalPct, 100)}%`;
-      if (agent.goalPct >= 100) {
-        bar.className =
-          "h-full bg-gradient-to-r from-green-500 to-green-400 transition-all duration-1000";
-      } else {
-        bar.className =
-          "h-full bg-gradient-to-r from-primary to-secondary transition-all duration-1000";
-      }
-    }, 100);
+  if (dom.slideshowCounter) {
+    dom.slideshowCounter.textContent = `${index + 1} / ${featuredCount}`;
   }
+
+  if (dom.featuredImg) {
+    dom.featuredImg.onerror = function () {
+      this.onerror = null;
+      this.src = DEFAULT_IMAGE;
+    };
+
+    dom.featuredImg.src = agent.imagePath;
+    dom.featuredImg.alt = agent.name;
+  }
+
+  if (dom.featuredRank) dom.featuredRank.textContent = `#${agent.rank}`;
+  if (dom.featuredName) dom.featuredName.textContent = agent.name;
+  if (dom.featuredTeam) dom.featuredTeam.textContent = agent.team || "Team";
+  if (dom.featuredSales) {
+    dom.featuredSales.textContent = formatCurrency(agent.totalSales);
+  }
+  if (dom.featuredDeals) {
+    dom.featuredDeals.textContent = `${agent.deals} deals`;
+  }
+}
+
+// ==========================================
+// UTILITIES
+// ==========================================
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value)
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
