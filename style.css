@@ -1030,3 +1030,122 @@ img {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ==========================================
+   TOP 1 / 2 / 3 FULL MEDAL COLORS
+========================================== */
+
+/* Top 3 full-card medal treatment */
+
+.top-card.gold {
+  background:
+    linear-gradient(135deg, rgba(253, 224, 71, 0.30), rgba(202, 138, 4, 0.15) 42%, rgba(19, 27, 46, 0.92)),
+    rgba(23, 31, 51, 0.94);
+  border-color: rgba(253, 224, 71, 0.46);
+  box-shadow:
+    0 18px 42px rgba(202, 138, 4, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.top-card.silver {
+  background:
+    linear-gradient(135deg, rgba(241, 245, 249, 0.24), rgba(148, 163, 184, 0.13) 42%, rgba(19, 27, 46, 0.92)),
+    rgba(23, 31, 51, 0.94);
+  border-color: rgba(241, 245, 249, 0.34);
+  box-shadow:
+    0 18px 42px rgba(148, 163, 184, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.top-card.bronze {
+  background:
+    linear-gradient(135deg, rgba(255, 182, 149, 0.25), rgba(146, 64, 14, 0.15) 42%, rgba(19, 27, 46, 0.92)),
+    rgba(23, 31, 51, 0.94);
+  border-color: rgba(255, 182, 149, 0.38);
+  box-shadow:
+    0 18px 42px rgba(146, 64, 14, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.top-card.gold .performance-tag {
+  color: #fde047;
+  background: rgba(253, 224, 71, 0.11);
+  border: 1px solid rgba(253, 224, 71, 0.18);
+}
+
+.top-card.silver .performance-tag {
+  color: #f1f5f9;
+  background: rgba(241, 245, 249, 0.09);
+  border: 1px solid rgba(241, 245, 249, 0.15);
+}
+
+.top-card.bronze .performance-tag {
+  color: #ffb695;
+  background: rgba(255, 182, 149, 0.10);
+  border: 1px solid rgba(255, 182, 149, 0.16);
+}
+
+/* Ledger full-row medal treatment */
+
+.ledger-row.gold {
+  background:
+    linear-gradient(90deg, rgba(253, 224, 71, 0.23), rgba(202, 138, 4, 0.12) 42%, rgba(19, 27, 46, 0.18));
+}
+
+.ledger-row.silver {
+  background:
+    linear-gradient(90deg, rgba(241, 245, 249, 0.20), rgba(148, 163, 184, 0.12) 42%, rgba(19, 27, 46, 0.18));
+}
+
+.ledger-row.bronze {
+  background:
+    linear-gradient(90deg, rgba(255, 182, 149, 0.20), rgba(146, 64, 14, 0.13) 42%, rgba(19, 27, 46, 0.18));
+}
+
+.ledger-row.gold .rank-pill {
+  color: #351000;
+  background: linear-gradient(135deg, #fde047, #ca8a04);
+  border: 1px solid rgba(253, 224, 71, 0.70);
+}
+
+.ledger-row.silver .rank-pill {
+  color: #283044;
+  background: linear-gradient(135deg, #f1f5f9, #94a3b8);
+  border: 1px solid rgba(241, 245, 249, 0.55);
+}
+
+.ledger-row.bronze .rank-pill {
+  color: #351000;
+  background: linear-gradient(135deg, #ffedd5, #92400e);
+  border: 1px solid rgba(255, 182, 149, 0.55);
+}
+
+.ledger-row.gold .rep-profile span,
+.ledger-row.gold .sales-cell,
+.ledger-row.gold .deals-cell {
+  color: #ffffff;
+}
+
+.ledger-row.silver .rep-profile span,
+.ledger-row.silver .sales-cell,
+.ledger-row.silver .deals-cell {
+  color: #ffffff;
+}
+
+.ledger-row.bronze .rep-profile span,
+.ledger-row.bronze .sales-cell,
+.ledger-row.bronze .deals-cell {
+  color: #ffffff;
+}
+
+.ledger-row.gold .team-cell {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.ledger-row.silver .team-cell {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.ledger-row.bronze .team-cell {
+  color: rgba(255, 255, 255, 0.78);
+}

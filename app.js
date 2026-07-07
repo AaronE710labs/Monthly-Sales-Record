@@ -428,6 +428,10 @@ function setImageSource(img, primarySrc, fallbackSrc, altText = "") {
   img.dataset.defaultWebpTried = "";
   img.dataset.defaultPngTried = "";
 
+  img.onerror = function () {
+    handleAgentImageError(this);
+  };
+
   if (img.getAttribute("src") !== primarySrc) {
     img.src = primarySrc;
   }
@@ -437,34 +441,26 @@ function handleAgentImageError(img) {
   if (!img) return;
 
   const fallbackSrc = img.dataset.fallbackSrc;
-  const currentSrc = img.getAttribute("src") || "";
 
-  if (
-    fallbackSrc &&
-    !img.dataset.fallbackTried &&
-    !currentSrc.includes(fallbackSrc)
-  ) {
+  if (fallbackSrc && !img.dataset.fallbackTried) {
     img.dataset.fallbackTried = "true";
     img.src = fallbackSrc;
     return;
   }
 
-  if (
-    !img.dataset.defaultWebpTried &&
-    !currentSrc.includes(DEFAULT_IMAGE_WEBP)
-  ) {
+  if (!img.dataset.defaultWebpTried) {
     img.dataset.defaultWebpTried = "true";
     img.src = DEFAULT_IMAGE_WEBP;
     return;
   }
 
-  if (
-    !img.dataset.defaultPngTried &&
-    !currentSrc.includes(DEFAULT_IMAGE_PNG)
-  ) {
+  if (!img.dataset.defaultPngTried) {
     img.dataset.defaultPngTried = "true";
     img.src = DEFAULT_IMAGE_PNG;
+    return;
   }
+
+  img.onerror = null;
 }
 
 window.handleAgentImageError = handleAgentImageError;
@@ -648,8 +644,17 @@ function updateLedger() {
 function buildLedgerRow(agent) {
   const rankClass = agent.rank === 1 ? "rank-pill first" : "rank-pill";
 
+  const medalClass =
+    agent.rank === 1
+      ? "gold"
+      : agent.rank === 2
+        ? "silver"
+        : agent.rank === 3
+          ? "bronze"
+          : "";
+
   return `
-    <tr class="ledger-row">
+    <tr class="ledger-row ${medalClass}">
       <td class="rank-cell">
         <span class="${rankClass}">${agent.rank}</span>
       </td>
