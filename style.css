@@ -1149,3 +1149,106 @@ img {
 .ledger-row.bronze .team-cell {
   color: rgba(255, 255, 255, 0.78);
 }
+
+/* ==========================================
+   FEATURED AGENT MEDAL COLORS
+========================================== */
+
+.featured-card.medal-featured.gold {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(253, 224, 71, 0.28),
+      rgba(202, 138, 4, 0.14) 38%,
+      rgba(19, 27, 46, 0.93)
+    ),
+    rgba(23, 31, 51, 0.95);
+  border-color: rgba(253, 224, 71, 0.48);
+  box-shadow:
+    0 22px 58px rgba(202, 138, 4, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.featured-card.medal-featured.silver {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(241, 245, 249, 0.24),
+      rgba(148, 163, 184, 0.13) 38%,
+      rgba(19, 27, 46, 0.93)
+    ),
+    rgba(23, 31, 51, 0.95);
+  border-color: rgba(241, 245, 249, 0.38);
+  box-shadow:
+    0 22px 58px rgba(148, 163, 184, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.featured-card.medal-featured.bronze {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 182, 149, 0.25),
+      rgba(146, 64, 14, 0.15) 38%,
+      rgba(19, 27, 46, 0.93)
+    ),
+    rgba(23, 31, 51, 0.95);
+  border-color: rgba(255, 182, 149, 0.42);
+  box-shadow:
+    0 22px 58px rgba(146, 64, 14, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.featured-card.medal-featured.gold .featured-rank {
+  color: #351000;
+  background: linear-gradient(135deg, #fde047, #ca8a04);
+  border-color: rgba(11, 19, 38, 0.95);
+}
+
+.featured-card.medal-featured.silver .featured-rank {
+  color: #283044;
+  background: linear-gradient(135deg, #f1f5f9, #94a3b8);
+  border-color: rgba(11, 19, 38, 0.95);
+}
+
+.featured-card.medal-featured.bronze .featured-rank {
+  color: #351000;
+  background: linear-gradient(135deg, #ffedd5, #92400e);
+  border-color: rgba(11, 19, 38, 0.95);
+}
+
+.featured-card.medal-featured.gold .featured-team-pill {
+  color: #fde047;
+  background: rgba(253, 224, 71, 0.11);
+  border-color: rgba(253, 224, 71, 0.22);
+}
+
+.featured-card.medal-featured.silver .featured-team-pill {
+  color: #f1f5f9;
+  background: rgba(241, 245, 249, 0.09);
+  border-color: rgba(241, 245, 249, 0.18);
+}
+
+.featured-card.medal-featured.bronze .featured-team-pill {
+  color: #ffb695;
+  background: rgba(255, 182, 149, 0.10);
+  border-color: rgba(255, 182, 149, 0.18);
+}
+
+.featured-card.medal-featured.gold .featured-deals-pill {
+  color: #fde047;
+  background: rgba(253, 224, 71, 0.10);
+  border-color: rgba(253, 224, 71, 0.18);
+}
+
+.featured-card.medal-featured.silver .featured-deals-pill {
+  color: #f1f5f9;
+  background: rgba(241, 245, 249, 0.08);
+  border-color: rgba(241, 245, 249, 0.15);
+}
+
+.featured-card.medal-featured.bronze .featured-deals-pill {
+  color: #ffb695;
+  background: rgba(255, 182, 149, 0.09);
+  border-color: rgba(255, 182, 149, 0.16);
+}

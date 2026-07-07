@@ -790,6 +790,8 @@ function renderFeaturedSlide(index) {
   const agent = salesData[index];
   const featuredCount = Math.min(FEATURED_LIMIT, salesData.length);
 
+  applyFeaturedMedalStyle(agent.rank);
+
   if (dom.slideshowCounter) {
     dom.slideshowCounter.textContent = `${index + 1} / ${featuredCount}`;
   }
@@ -811,6 +813,26 @@ function renderFeaturedSlide(index) {
 
   if (dom.featuredDeals) {
     dom.featuredDeals.textContent = `${agent.deals} deals`;
+  }
+}
+
+function applyFeaturedMedalStyle(rank) {
+  if (!dom.featuredCard) return;
+
+  dom.featuredCard.classList.remove("gold", "silver", "bronze", "medal-featured");
+
+  if (rank === 1) {
+    dom.featuredCard.classList.add("gold", "medal-featured");
+    return;
+  }
+
+  if (rank === 2) {
+    dom.featuredCard.classList.add("silver", "medal-featured");
+    return;
+  }
+
+  if (rank === 3) {
+    dom.featuredCard.classList.add("bronze", "medal-featured");
   }
 }
 
