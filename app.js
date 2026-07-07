@@ -1,10 +1,10 @@
 /**
  * SalesCommand Dashboard Logic
  * Optimized for TV displays:
- * - Fixed 1920x1080 canvas support
- * - Smooth RAF-based ledger infinite loop
- * - Safer data refresh without unnecessary DOM rebuilds
- * - PNG image support preserved
+ * - WebP images with PNG fallback
+ * - Smooth row-recycling infinite ledger
+ * - Silent background sync
+ * - Reduced DOM work during refresh
  * - Apps Script JSONP connection preserved
  */
 
@@ -18,7 +18,8 @@ const APPS_SCRIPT_URL =
 const DATA_REFRESH_INTERVAL = 1 * 60 * 1000;
 const SLIDESHOW_INTERVAL = 10 * 1000;
 
-const DEFAULT_IMAGE = "images/default-user.png";
+const DEFAULT_IMAGE_WEBP = "images/default-user.webp";
+const DEFAULT_IMAGE_PNG = "images/default-user.png";
 
 const EXCLUDED_AGENTS = ["diego moreira"];
 
@@ -30,7 +31,8 @@ const ALLOWED_STATUSES = new Set([
 ]);
 
 const LEDGER_CONFIG = {
-  pixelsPerSecond: 24,
+  pixelsPerSecond: 22,
+  rowHeight: 66,
 };
 
 const FEATURED_LIMIT = 5;
@@ -43,13 +45,15 @@ let salesData = [];
 let currentSlideIndex = 0;
 let slideshowTimer = null;
 let dataRefreshTimer = null;
+
 let isFirstLoad = true;
+let hasLoadedDataOnce = false;
+let isFetchingData = false;
 let lastDataSignature = "";
 
 let ledgerRafId = null;
 let ledgerLastTimestamp = 0;
 let ledgerOffset = 0;
-let ledgerLoopDistance = 0;
 
 let dom = {};
 
@@ -63,10 +67,13 @@ document.addEventListener("DOMContentLoaded", () => {
   updateClock();
   setInterval(updateClock, 60 * 1000);
 
-  fetchData();
+  fetchData({ silent: false });
 
   if (dataRefreshTimer) clearInterval(dataRefreshTimer);
-  dataRefreshTimer = setInterval(fetchData, DATA_REFRESH_INTERVAL);
+
+  dataRefreshTimer = setInterval(() => {
+    fetchData({ silent: true });
+  }, DATA_REFRESH_INTERVAL);
 });
 
 function cacheDom() {
@@ -189,9 +196,17 @@ function fetchJSONP(url) {
   });
 }
 
-async function fetchData() {
+async function fetchData(options = {}) {
+  const { silent = false } = options;
+
+  if (isFetchingData) return;
+
+  isFetchingData = true;
+
   try {
-    setStatus("Syncing", "loading");
+    if (!silent || !hasLoadedDataOnce) {
+      setStatus("Syncing", "loading");
+    }
 
     const data = await fetchJSONP(APPS_SCRIPT_URL);
 
@@ -206,11 +221,14 @@ async function fetchData() {
 
     processData(masterRows, agentRows);
 
+    hasLoadedDataOnce = true;
     setStatus("Live", "ok");
     updateClock();
   } catch (err) {
     console.error("Error fetching Apps Script JSONP data:", err);
     setStatus("Connection Issue", "error");
+  } finally {
+    isFetchingData = false;
   }
 }
 
@@ -318,7 +336,7 @@ function processData(rawData, agentRows = []) {
   }
 
   preloadFeaturedImages();
-  updateUI();
+  scheduleUIUpdate();
 
   if (isFirstLoad) {
     startSlideshow();
@@ -327,12 +345,15 @@ function processData(rawData, agentRows = []) {
 }
 
 function createAgentRecord(name, team = "") {
+  const imagePaths = generateImagePaths(name);
+
   return {
     name,
     totalSales: 0,
     deals: 0,
     team: team || "",
-    imagePath: generateImagePath(name),
+    imagePath: imagePaths.webp,
+    fallbackImagePath: imagePaths.png,
     rank: 0,
   };
 }
@@ -360,16 +381,23 @@ function parseMoney(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function generateImagePath(fullName) {
-  const normalized = String(fullName || "")
+function normalizeImageName(fullName) {
+  return String(fullName || "")
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9 ]/g, "")
     .trim()
     .replace(/\s+/g, "-");
+}
 
-  return `images/${normalized}.png`;
+function generateImagePaths(fullName) {
+  const normalized = normalizeImageName(fullName);
+
+  return {
+    webp: `images/${normalized}.webp`,
+    png: `images/${normalized}.png`,
+  };
 }
 
 function preloadFeaturedImages() {
@@ -378,13 +406,78 @@ function preloadFeaturedImages() {
     img.src = agent.imagePath;
   });
 
-  const fallback = new Image();
-  fallback.src = DEFAULT_IMAGE;
+  const defaultWebp = new Image();
+  defaultWebp.src = DEFAULT_IMAGE_WEBP;
+
+  const defaultPng = new Image();
+  defaultPng.src = DEFAULT_IMAGE_PNG;
 }
+
+// ==========================================
+// IMAGE FALLBACKS
+// ==========================================
+
+function setImageSource(img, primarySrc, fallbackSrc, altText = "") {
+  if (!img) return;
+
+  img.alt = altText;
+
+  img.dataset.primarySrc = primarySrc || "";
+  img.dataset.fallbackSrc = fallbackSrc || "";
+  img.dataset.fallbackTried = "";
+  img.dataset.defaultWebpTried = "";
+  img.dataset.defaultPngTried = "";
+
+  if (img.getAttribute("src") !== primarySrc) {
+    img.src = primarySrc;
+  }
+}
+
+function handleAgentImageError(img) {
+  if (!img) return;
+
+  const fallbackSrc = img.dataset.fallbackSrc;
+  const currentSrc = img.getAttribute("src") || "";
+
+  if (
+    fallbackSrc &&
+    !img.dataset.fallbackTried &&
+    !currentSrc.includes(fallbackSrc)
+  ) {
+    img.dataset.fallbackTried = "true";
+    img.src = fallbackSrc;
+    return;
+  }
+
+  if (
+    !img.dataset.defaultWebpTried &&
+    !currentSrc.includes(DEFAULT_IMAGE_WEBP)
+  ) {
+    img.dataset.defaultWebpTried = "true";
+    img.src = DEFAULT_IMAGE_WEBP;
+    return;
+  }
+
+  if (
+    !img.dataset.defaultPngTried &&
+    !currentSrc.includes(DEFAULT_IMAGE_PNG)
+  ) {
+    img.dataset.defaultPngTried = "true";
+    img.src = DEFAULT_IMAGE_PNG;
+  }
+}
+
+window.handleAgentImageError = handleAgentImageError;
 
 // ==========================================
 // UI UPDATES
 // ==========================================
+
+function scheduleUIUpdate() {
+  requestAnimationFrame(() => {
+    updateUI();
+  });
+}
 
 function updateUI() {
   updateGlobalMetrics();
@@ -472,10 +565,11 @@ function updateTop3() {
             <div class="avatar-wrap small ${medalClass}">
               <img
                 src="${escapeAttr(agent.imagePath)}"
+                data-fallback-src="${escapeAttr(agent.fallbackImagePath)}"
                 alt="${escapeAttr(agent.name)}"
                 decoding="async"
                 loading="eager"
-                onerror="this.onerror=null;this.src='${DEFAULT_IMAGE}'"
+                onerror="window.handleAgentImageError(this)"
               />
               <span class="rank-dot">${agent.rank}</span>
             </div>
@@ -501,7 +595,7 @@ function updateTop3() {
 }
 
 // ==========================================
-// LEDGER
+// LEDGER - ROW RECYCLING INFINITE LOOP
 // ==========================================
 
 function updateLedger() {
@@ -526,21 +620,26 @@ function updateLedger() {
   dom.ledgerBody.innerHTML = singleRowsHTML;
 
   requestAnimationFrame(() => {
-    const singleHeight = dom.ledgerBody.getBoundingClientRect().height;
+    const baseHeight = dom.ledgerBody.getBoundingClientRect().height;
     const viewportHeight = dom.ledgerViewport.clientHeight;
 
-    if (!singleHeight || singleHeight <= 0) return;
+    if (!baseHeight || baseHeight <= 0 || !viewportHeight) return;
 
-    const copiesNeeded = Math.max(
-      3,
-      Math.ceil(viewportHeight / singleHeight) + 3
-    );
+    let copiesNeeded = 1;
 
-    dom.ledgerBody.innerHTML = singleRowsHTML.repeat(copiesNeeded);
+    if (baseHeight < viewportHeight * 1.8) {
+      copiesNeeded = Math.ceil((viewportHeight * 2.4) / baseHeight);
+    }
 
-    ledgerLoopDistance = singleHeight;
+    copiesNeeded = Math.max(1, Math.min(copiesNeeded, 6));
+
+    if (copiesNeeded > 1) {
+      dom.ledgerBody.innerHTML = singleRowsHTML.repeat(copiesNeeded);
+    }
+
     ledgerOffset = 0;
     ledgerLastTimestamp = 0;
+    dom.ledgerTrack.style.transform = "translate3d(0, 0, 0)";
 
     ledgerRafId = requestAnimationFrame(animateLedgerLoop);
   });
@@ -559,10 +658,11 @@ function buildLedgerRow(agent) {
         <div class="rep-profile">
           <img
             src="${escapeAttr(agent.imagePath)}"
+            data-fallback-src="${escapeAttr(agent.fallbackImagePath)}"
             alt="${escapeAttr(agent.name)}"
             decoding="async"
             loading="lazy"
-            onerror="this.onerror=null;this.src='${DEFAULT_IMAGE}'"
+            onerror="window.handleAgentImageError(this)"
           />
           <span title="${escapeAttr(agent.name)}">${escapeHtml(agent.name)}</span>
         </div>
@@ -584,6 +684,8 @@ function buildLedgerRow(agent) {
 }
 
 function animateLedgerLoop(timestamp) {
+  if (!dom.ledgerBody || !dom.ledgerTrack) return;
+
   if (!ledgerLastTimestamp) {
     ledgerLastTimestamp = timestamp;
   }
@@ -591,15 +693,28 @@ function animateLedgerLoop(timestamp) {
   const deltaSeconds = Math.min((timestamp - ledgerLastTimestamp) / 1000, 0.05);
   ledgerLastTimestamp = timestamp;
 
-  if (ledgerLoopDistance > 0) {
-    ledgerOffset =
-      (ledgerOffset + LEDGER_CONFIG.pixelsPerSecond * deltaSeconds) %
-      ledgerLoopDistance;
+  ledgerOffset += LEDGER_CONFIG.pixelsPerSecond * deltaSeconds;
 
-    dom.ledgerTrack.style.transform = `translate3d(0, ${-ledgerOffset}px, 0)`;
-  }
+  recycleLedgerRows();
+
+  dom.ledgerTrack.style.transform = `translate3d(0, ${-ledgerOffset}px, 0)`;
 
   ledgerRafId = requestAnimationFrame(animateLedgerLoop);
+}
+
+function recycleLedgerRows() {
+  const rowHeight = LEDGER_CONFIG.rowHeight;
+
+  if (!rowHeight || rowHeight <= 0) return;
+
+  while (ledgerOffset >= rowHeight) {
+    const firstRow = dom.ledgerBody.firstElementChild;
+
+    if (!firstRow) return;
+
+    dom.ledgerBody.appendChild(firstRow);
+    ledgerOffset -= rowHeight;
+  }
 }
 
 function cancelLedgerLoop() {
@@ -674,22 +789,21 @@ function renderFeaturedSlide(index) {
     dom.slideshowCounter.textContent = `${index + 1} / ${featuredCount}`;
   }
 
-  if (dom.featuredImg) {
-    dom.featuredImg.onerror = function () {
-      this.onerror = null;
-      this.src = DEFAULT_IMAGE;
-    };
-
-    dom.featuredImg.src = agent.imagePath;
-    dom.featuredImg.alt = agent.name;
-  }
+  setImageSource(
+    dom.featuredImg,
+    agent.imagePath,
+    agent.fallbackImagePath,
+    agent.name
+  );
 
   if (dom.featuredRank) dom.featuredRank.textContent = `#${agent.rank}`;
   if (dom.featuredName) dom.featuredName.textContent = agent.name;
   if (dom.featuredTeam) dom.featuredTeam.textContent = agent.team || "Team";
+
   if (dom.featuredSales) {
     dom.featuredSales.textContent = formatCurrency(agent.totalSales);
   }
+
   if (dom.featuredDeals) {
     dom.featuredDeals.textContent = `${agent.deals} deals`;
   }
