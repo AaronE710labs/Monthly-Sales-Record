@@ -1252,3 +1252,20 @@ img {
   background: rgba(255, 182, 149, 0.09);
   border-color: rgba(255, 182, 149, 0.16);
 }
+
+/* ==========================================
+   METRICS SIDE - 3 FIELDS SUPPORT
+========================================== */
+
+.metric-side {
+  gap: 32px;
+  padding-left: 36px;
+}
+
+.metric-mini strong {
+  max-width: 300px;
+}
+
+.metric-mini:nth-child(3) strong {
+  color: var(--tertiary);
+}
