@@ -5,6 +5,7 @@
  * - Smooth row-recycling infinite ledger
  * - Silent background sync
  * - Reduced DOM work during refresh
+ * - Daily social lead count metric
  * - Apps Script JSONP connection preserved
  */
 
@@ -13,7 +14,7 @@
 // ==========================================
 
 const APPS_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbzOKOeCODt7isV51xvOOu0UbEgzxu9SsPytmCS7kBcJZzl79gLlZUNLd8B5Rc9FrfqR/exec";
+  "https://script.google.com/macros/s/AKfycbwkuAIw8LmPkces44g4kHJVxA0h2amW_-V6ZIRg1kKiHJwfzuK2OQVlU62QliuhGKKO/exec";
 
 const DATA_REFRESH_INTERVAL = 1 * 60 * 1000;
 const SLIDESHOW_INTERVAL = 10 * 1000;
@@ -42,6 +43,8 @@ const FEATURED_LIMIT = 5;
 // ==========================================
 
 let salesData = [];
+let todayLeadCount = 0;
+
 let currentSlideIndex = 0;
 let slideshowTimer = null;
 let dataRefreshTimer = null;
@@ -85,6 +88,7 @@ function cacheDom() {
 
     totalCompanySales: document.getElementById("totalCompanySales"),
     totalAgents: document.getElementById("totalAgents"),
+    dailyLeadCount: document.getElementById("dailyLeadCount"),
     topPerformerName: document.getElementById("topPerformerName"),
 
     top3Grid: document.getElementById("top3Grid"),
@@ -218,8 +222,11 @@ async function fetchData(options = {}) {
 
     const masterRows = Array.isArray(data.master) ? data.master : [];
     const agentRows = Array.isArray(data.agents) ? data.agents : [];
+    const dailyLeadRows = Array.isArray(data.dailyLeadCount)
+      ? data.dailyLeadCount
+      : [];
 
-    processData(masterRows, agentRows);
+    processData(masterRows, agentRows, dailyLeadRows);
 
     hasLoadedDataOnce = true;
     setStatus("Live", "ok");
@@ -257,9 +264,40 @@ function getCurrentMonthLabel() {
   return `${months[now.getMonth()]} ${now.getFullYear()}`;
 }
 
-function processData(rawData, agentRows = []) {
+function getTodayISODate() {
+  const now = new Date();
+
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function getTodayLeadCount(dailyLeadRows = []) {
+  const today = getTodayISODate();
+
+  const todayRow = dailyLeadRows.find((row) => {
+    const rowDate = getCell(row, ["Date", "date"]).trim();
+    return rowDate === today;
+  });
+
+  if (!todayRow) return 0;
+
+  return parseInteger(getCell(todayRow, ["Count", "count"]));
+}
+
+function parseInteger(value) {
+  const cleaned = String(value || "").replace(/[^0-9-]+/g, "");
+  const parsed = parseInt(cleaned, 10);
+
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function processData(rawData, agentRows = [], dailyLeadRows = []) {
   const groupedAgents = {};
   const currentMonth = getCurrentMonthLabel().toLowerCase();
+  const nextTodayLeadCount = getTodayLeadCount(dailyLeadRows);
 
   rawData.forEach((row) => {
     const rowMonth = getCell(row, ["Month", " X", "X"]).toLowerCase();
@@ -314,15 +352,16 @@ function processData(rawData, agentRows = []) {
       rank: index + 1,
     }));
 
-  const newSignature = JSON.stringify(
-    nextSalesData.map((agent) => ({
+  const newSignature = JSON.stringify({
+    agents: nextSalesData.map((agent) => ({
       name: agent.name,
       totalSales: Math.round(agent.totalSales * 100) / 100,
       deals: agent.deals,
       team: agent.team,
       rank: agent.rank,
-    }))
-  );
+    })),
+    todayLeadCount: nextTodayLeadCount,
+  });
 
   if (newSignature === lastDataSignature) {
     return;
@@ -330,6 +369,7 @@ function processData(rawData, agentRows = []) {
 
   lastDataSignature = newSignature;
   salesData = nextSalesData;
+  todayLeadCount = nextTodayLeadCount;
 
   if (currentSlideIndex >= Math.min(FEATURED_LIMIT, salesData.length)) {
     currentSlideIndex = 0;
@@ -494,6 +534,10 @@ function updateGlobalMetrics() {
 
   if (dom.totalAgents) {
     dom.totalAgents.textContent = salesData.length.toLocaleString();
+  }
+
+  if (dom.dailyLeadCount) {
+    dom.dailyLeadCount.textContent = todayLeadCount.toLocaleString();
   }
 
   if (dom.topPerformerName) {
