@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+
+  <base href="../" />
+
+  <title>SalesCommand | Mobile Dashboard</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="mobile/mobile.css" />
+</head>
+
+<body>
+  <main class="mobile-shell">
+    <header class="mobile-header">
+      <div class="brand-row">
+        <div class="brand-icon">
+          <span class="material-symbols-outlined">monitoring</span>
+        </div>
+
+        <div>
+          <h1>SalesCommand</h1>
+          <p>Mobile Dashboard</p>
+        </div>
+      </div>
+
+      <div class="header-pills">
+        <div class="month-pill">
+          <span class="material-symbols-outlined">calendar_month</span>
+          <span id="currentMonthLabel">Loading...</span>
+        </div>
+
+        <div id="statusPill" class="status-pill" data-status="loading">
+          <span class="status-dot"></span>
+          <span id="appStatus" data-status="loading">Loading</span>
+        </div>
+      </div>
+
+      <span id="clock" class="clock-text">Last Updated: --:--</span>
+    </header>
+
+    <section class="mobile-card hero-card">
+      <p class="eyebrow">Total Company Sales MTD</p>
+
+      <h2 id="totalCompanySales" class="revenue-shimmer">
+        $0.<span>00</span>
+      </h2>
+    </section>
+
+    <section class="metrics-grid">
+      <article class="mobile-card metric-mini">
+        <p>Top Performer</p>
+        <strong id="topPerformerName">Loading...</strong>
+      </article>
+
+      <article class="mobile-card metric-mini">
+        <p>Total Agents</p>
+        <strong id="totalAgents">0</strong>
+      </article>
+
+      <article class="mobile-card metric-mini accent">
+        <p>Social Leads Today</p>
+        <strong id="dailyLeadCount">0</strong>
+      </article>
+    </section>
+
+    <section class="mobile-section">
+      <div class="section-title-row">
+        <div>
+          <p class="eyebrow">Featured Spotlight</p>
+          <h3>Featured Agent</h3>
+        </div>
+
+        <span id="slideshowCounter" class="counter-pill">1 / 1</span>
+      </div>
+
+      <article id="featuredCardContainer" class="mobile-card featured-card">
+        <div class="featured-top">
+          <div class="avatar-wrap featured-avatar">
+            <img
+              id="featuredImg"
+              src="images/default-user.webp"
+              alt="Featured Seller Photo"
+              decoding="async"
+              fetchpriority="high"
+              onerror="this.onerror=null;this.src='images/default-user.png'"
+            />
+
+            <span id="featuredRank" class="featured-rank">#1</span>
+          </div>
+
+          <div class="featured-team-pill">
+            <span id="featuredTeam">Team</span>
+          </div>
+        </div>
+
+        <div class="featured-identity">
+          <h4 id="featuredName">Agent Name</h4>
+          <p>Current month production</p>
+        </div>
+
+        <div class="featured-bottom">
+          <div>
+            <p>Total Sales</p>
+            <h5 id="featuredSales">$0</h5>
+          </div>
+
+          <div class="featured-deals-pill">
+            <span class="material-symbols-outlined">receipt_long</span>
+            <span id="featuredDeals">0 deals</span>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="mobile-section">
+      <div class="section-title-row">
+        <div>
+          <p class="eyebrow">Leaderboard</p>
+          <h3>Top 3 Representatives</h3>
+        </div>
+      </div>
+
+      <div id="top3Grid" class="top3-grid">
+        <div class="empty-state">Loading...</div>
+      </div>
+    </section>
+
+    <section class="mobile-section ledger-section">
+      <div class="section-title-row">
+        <div>
+          <p class="eyebrow">Full Ranking</p>
+          <h3>Performance Ledger</h3>
+        </div>
+
+        <div class="stream-pill">
+          <span class="live-dot"></span>
+          <span>Live</span>
+        </div>
+      </div>
+
+      <div class="ledger-card">
+        <div class="ledger-table-head">
+          <div class="col-rank">#</div>
+          <div class="col-rep">Representative</div>
+          <div class="col-sales">Sales</div>
+          <div class="col-deals">Deals</div>
+        </div>
+
+        <div id="ledgerAutoScroll" class="ledger-scroll-container">
+          <div id="ledgerScrollTrack" class="ledger-scroll-track">
+            <table class="ledger-table" aria-label="Full Performance Ledger">
+              <tbody id="ledgerTableBody">
+                <tr class="ledger-row">
+                  <td colspan="5" class="ledger-empty">Loading...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
